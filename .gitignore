@@ -1,0 +1,25 @@
+# Build (артефакты в корне проекта)
+build/
+dist/
+
+# Готовая сборка — создаётся в родительской папке (build_all.bat)
+# 1c_help_mcp_server_Portable/
+
+# Данные (при разработке — локально или в Portable)
+databases/
+
+# Исходники справки (распаковываются отдельно, не в репо)
+shcntx_ru/
+shlang_ru/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
