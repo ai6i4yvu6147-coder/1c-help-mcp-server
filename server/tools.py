@@ -86,6 +86,10 @@ class HelpTools:
                FROM syntax_methods m
                JOIN syntax_objects o ON m.object_id = o.id
                WHERE m.name = ?
+               ORDER BY
+                 CASE WHEN o.name = 'Глобальный контекст' THEN 0 ELSE 1 END,
+                 CASE WHEN m.description IS NOT NULL AND m.description != '' THEN 0 ELSE 1 END,
+                 CASE WHEN m.signature IS NOT NULL AND m.signature != '' THEN 0 ELSE 1 END
                LIMIT 1""",
             (name,)
         )
@@ -130,22 +134,79 @@ class HelpTools:
 
         return None
 
+    _GLOBAL_CONTEXT = "Глобальный контекст"
+
     def search_syntax(
         self, query: str, version: str | None = None, max_results: int = 20
     ) -> list[dict]:
-        """Full-text search."""
+        """Full-text search with ranking: exact name > full_name > FTS name/full_name > broad FTS."""
         conn = self._get_connection(version)
         if not conn:
             return []
 
-        try:
-            cursor = conn.execute(
-                "SELECT rowid, name, full_name, signature FROM help_search WHERE help_search MATCH ? LIMIT ?",
-                (query, max_results)
-            )
-            return [{"id": r["rowid"], "name": r["name"], "full_name": r["full_name"], "signature": r["signature"]} for r in cursor.fetchall()]
-        except sqlite3.OperationalError:
+        query = query.strip()
+        if not query:
             return []
+
+        ranked: list[tuple[int, int, dict]] = []
+        seen: set[int] = set()
+
+        def _add(row: sqlite3.Row, rank: int) -> None:
+            rowid = row["rowid"]
+            if rowid in seen:
+                return
+            seen.add(rowid)
+            ranked.append((
+                rank,
+                len(row["full_name"] or row["name"] or ""),
+                {
+                    "id": rowid,
+                    "name": row["name"],
+                    "full_name": row["full_name"],
+                    "signature": row["signature"],
+                },
+            ))
+
+        for row in conn.execute(
+            "SELECT rowid, name, full_name, signature FROM help_search WHERE name = ? LIMIT ?",
+            (query, max_results),
+        ):
+            _add(row, 0)
+
+        suffix = f".{query}"
+        for row in conn.execute(
+            """SELECT rowid, name, full_name, signature FROM help_search
+               WHERE full_name = ? OR full_name LIKE '%' || ? LIMIT ?""",
+            (query, suffix, max_results),
+        ):
+            _add(row, 1)
+
+        fts_prefix = query.replace('"', '""')
+        for fts_query in (
+            f'name:"{fts_prefix}"',
+            f'full_name:"{fts_prefix}"*',
+        ):
+            try:
+                for row in conn.execute(
+                    "SELECT rowid, name, full_name, signature FROM help_search WHERE help_search MATCH ? LIMIT ?",
+                    (fts_query, max_results),
+                ):
+                    _add(row, 2)
+            except sqlite3.OperationalError:
+                pass
+
+        if len(ranked) < max_results:
+            try:
+                for row in conn.execute(
+                    "SELECT rowid, name, full_name, signature FROM help_search WHERE help_search MATCH ? LIMIT ?",
+                    (query, max_results * 3),
+                ):
+                    _add(row, 3)
+            except sqlite3.OperationalError:
+                pass
+
+        ranked.sort(key=lambda item: (item[0], item[1]))
+        return [item[2] for item in ranked[:max_results]]
 
     # Коллекции метаданных → соответствующий менеджер (для Справочники.Х.Метод())
     _METADATA_TO_MANAGER = {
@@ -229,10 +290,22 @@ class HelpTools:
         if not conn:
             return []
 
-        if category:
+        if category == "global":
+            cursor = conn.execute(
+                """SELECT m.name, o.full_name || '.' || m.name AS full_name, 'global' AS category
+                   FROM syntax_methods m
+                   JOIN syntax_objects o ON m.object_id = o.id
+                   WHERE o.name = ?
+                   ORDER BY m.name""",
+                (self._GLOBAL_CONTEXT,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+        db_category = "structure" if category == "operator" else category
+        if db_category:
             cursor = conn.execute(
                 "SELECT name, full_name, category FROM syntax_objects WHERE category = ? ORDER BY name",
-                (category,)
+                (db_category,),
             )
         else:
             cursor = conn.execute(

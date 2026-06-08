@@ -260,7 +260,9 @@ def parse_help_sources(root_path: Path) -> Iterator[dict]:
                     return n.split("(")[0].strip() if n else ""
 
                 method_names = {_ru_key(m["name"]): m for m in obj["methods"]}
-                for mhtml in methods_dir.glob("*.html"):
+                for mhtml in methods_dir.rglob("*.html"):
+                    if mhtml.name.startswith("__"):
+                        continue
                     mdata = _parse_method_page(mhtml, obj.get("full_name", ""), "shcntx_ru")
                     if mdata and mdata.get("name"):
                         ru_key = _ru_key(mdata["name"])

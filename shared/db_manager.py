@@ -86,6 +86,23 @@ def get_meta(conn: sqlite3.Connection) -> dict:
     return {r["key"]: r["value"] for r in rows}
 
 
+def get_help_source_path(databases_dir: Path, version: str) -> str | None:
+    """Return saved help source folder path for version, if any."""
+    db_path = get_db_path(databases_dir, version)
+    if not db_path.exists():
+        return None
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT value FROM meta WHERE key = ?", ("source_path",)
+        ).fetchone()
+        conn.close()
+        return row["value"] if row and row["value"] else None
+    except Exception:
+        return None
+
+
 def list_databases(databases_dir: Path) -> list[dict]:
     """List all help databases with version info."""
     result = []
@@ -101,6 +118,7 @@ def list_databases(databases_dir: Path) -> list[dict]:
                 "path": str(f),
                 "version": meta.get("version", "?"),
                 "created": meta.get("created", ""),
+                "source_path": meta.get("source_path", ""),
             })
         except Exception:
             result.append({"path": str(f), "version": "?", "created": ""})

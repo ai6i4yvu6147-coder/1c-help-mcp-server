@@ -1,25 +1,43 @@
-# Build (артефакты в корне проекта)
-build/
-dist/
-
-# Готовая сборка — создаётся в родительской папке (build_all.bat)
-# 1c_help_mcp_server_Portable/
-
-# Данные (при разработке — локально или в Portable)
-databases/
-
-# Исходники справки (распаковываются отдельно, не в репо)
-shcntx_ru/
-shlang_ru/
-
 # Python
 venv/
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# PyInstaller
+*.spec
+
+# Portable сборка (соседняя папка с исходниками, не в репо)
+# ../1c_help_mcp_server_Portable/
+
+# Базы данных и служебные данные
+databases/
+*.db
+
+# Исходники справки 1С (подключаются отдельно)
+shcntx_ru/
+shlang_ru/
 
 # IDE
 .idea/
 .vscode/
-*.swp
-*.swo
+*.code-workspace
+
+# Временные файлы
+*.log
+*.tmp
+*.bak
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# macOS
+.DS_Store

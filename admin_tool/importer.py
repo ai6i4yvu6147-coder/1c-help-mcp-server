@@ -14,6 +14,7 @@ def import_help(root_path: Path, version: str, databases_dir: Path) -> tuple[boo
     Import help from root_path (containing shcntx_ru and/or shlang_ru) into DB.
     Returns (success, message).
     """
+    root_path = root_path.resolve()
     shcntx = root_path / "shcntx_ru"
     shlang = root_path / "shlang_ru"
 
@@ -24,7 +25,6 @@ def import_help(root_path: Path, version: str, databases_dir: Path) -> tuple[boo
     conn = create_database(db_path, version)
     init_fts(conn)
 
-    # Очистка перед импортом
     conn.execute("DELETE FROM syntax_methods")
     conn.execute("DELETE FROM syntax_objects")
     conn.execute("DELETE FROM help_search")
@@ -75,6 +75,10 @@ def import_help(root_path: Path, version: str, databases_dir: Path) -> tuple[boo
                     (mid, mname, mfull, m.get("signature") or "", m.get("description") or ""),
                 )
 
+        conn.execute(
+            "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+            ("source_path", str(root_path)),
+        )
         conn.commit()
         return True, f"Справка {version} загружена. Объектов: {count_objects}, методов: {count_methods}"
     except Exception as e:
