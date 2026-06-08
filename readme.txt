@@ -9,9 +9,10 @@
 БЫСТРЫЙ СТАРТ
 -------------
 1. Сборка: build_all.bat → в соседней папке создаётся 1c_help_mcp_server_Portable.
-2. В Portable: Admin.bat → «Добавить справку» → папка с shcntx_ru и shlang_ru → версия (8.3.27).
+2. В Portable: Admin.bat → «Добавить справку» → папка с shcntx_ru, shlang_ru и shquery_ru → версия (8.3.27).
 3. MCP: в конфиг клиента добавить command на Server\1c-help-server.exe внутри portable-папки.
-4. Инструменты: get_syntax, search_syntax, get_object_api, validate_code, list_syntax, list_help_versions.
+4. Инструменты BSL: get_syntax, search_syntax, get_object_api, validate_code, list_syntax, list_help_versions.
+5. Инструменты запросов: get_query_syntax, search_query, list_query_topics.
 
 СТРУКТУРА ПРОЕКТА (исходники)
 ------------------------------
@@ -24,7 +25,7 @@ build_all.bat - сборка → ../1c_help_mcp_server_Portable/
 
 ИСТОЧНИК СПРАВКИ
 ----------------
-Распакуйте shcntx_ru.hbk и shlang_ru.hbk из каталога bin платформы 1С (7zip: Распаковать).
+Распакуйте shcntx_ru.hbk, shlang_ru.hbk и shquery_ru.hbk из каталога bin платформы 1С (7zip: Распаковать).
 Путь к распакованным папкам указывается в Admin при импорте — в репозиторий не кладётся.
 
 ПОРТАТИВНОСТЬ

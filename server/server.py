@@ -38,9 +38,9 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="get_syntax",
-            description="Справка по синтаксису 1С: метод, свойство, тип, конструкция, глобальная функция. "
-                        "Параметр name: например 'Запрос.Выполнить', 'Сообщить', 'Если', 'Строка'. "
-                        "Возвращает текст и структурированный JSON (signature, params, returns).",
+            description="Справка по встроенному языку 1С (BSL): метод, свойство, тип, конструкция, глобальная функция. "
+                        "Не для языка запросов — для запросов используйте get_query_syntax. "
+                        "Параметр name: например 'Запрос.Выполнить', 'Сообщить', 'Если', 'Строка'.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -52,7 +52,8 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="search_syntax",
-            description="Полнотекстовый поиск по справке 1С.",
+            description="Полнотекстовый поиск по встроенному языку 1С (BSL). "
+                        "Не включает язык запросов — для запросов используйте search_query.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -91,6 +92,44 @@ async def list_tools() -> list[Tool]:
             name="list_help_versions",
             description="Список доступных версий справки.",
             inputSchema={"type": "object", "properties": {}, "required": []},
+        ),
+        Tool(
+            name="get_query_syntax",
+            description="Справка по языку запросов 1С: ключевые слова, функции, предложения. "
+                        "Параметр name: 'ЕСТЬNULL', 'ГДЕ', 'ВЫБРАТЬ', 'ISNULL', 'WhereStatement'.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "RU-имя, EN-имя или topic_id"},
+                    "version": {"type": "string", "description": "Версия платформы, опционально"},
+                },
+                "required": ["name"],
+            },
+        ),
+        Tool(
+            name="search_query",
+            description="Полнотекстовый поиск по справке языка запросов 1С (не BSL).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Поисковый запрос"},
+                    "version": {"type": "string", "description": "Версия платформы, опционально"},
+                    "max_results": {"type": "integer", "description": "Макс. результатов", "default": 20},
+                },
+                "required": ["query"],
+            },
+        ),
+        Tool(
+            name="list_query_topics",
+            description="Список тем справки языка запросов. category: keyword|function|statement|operator|literal|article.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "description": "Подкатегория, опционально"},
+                    "version": {"type": "string", "description": "Версия платформы, опционально"},
+                },
+                "required": [],
+            },
         ),
         Tool(
             name="validate_code",
@@ -161,6 +200,37 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         if name == "list_help_versions":
             versions = tools.list_versions()
             text = "Доступные версии:\n" + "\n".join(versions) if versions else "Нет загруженных справок"
+            return [TextContent(type="text", text=text)]
+
+        if name == "get_query_syntax":
+            result = tools.get_query_syntax(
+                name=arguments["name"],
+                version=arguments.get("version"),
+            )
+            if result:
+                text = _format_response(
+                    result.get("description") or result.get("syntax") or "",
+                    result,
+                )
+            else:
+                text = f"Не найдено: {arguments['name']}"
+            return [TextContent(type="text", text=text)]
+
+        if name == "search_query":
+            results = tools.search_query(
+                query=arguments["query"],
+                version=arguments.get("version"),
+                max_results=arguments.get("max_results", 20),
+            )
+            text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Ничего не найдено"
+            return [TextContent(type="text", text=text)]
+
+        if name == "list_query_topics":
+            results = tools.list_query_topics(
+                category=arguments.get("category"),
+                version=arguments.get("version"),
+            )
+            text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Пусто (загрузите shquery_ru)"
             return [TextContent(type="text", text=text)]
 
         if name == "validate_code":

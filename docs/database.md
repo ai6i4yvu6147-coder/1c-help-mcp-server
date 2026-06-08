@@ -8,15 +8,19 @@
 
 ### Как БД создаётся
 
-1. Admin → «Добавить справку» → папка с `shcntx_ru` / `shlang_ru` → версия (например `8.3.27.1688`).
+1. Admin → «Добавить справку» → папка с `shcntx_ru` / `shlang_ru` / `shquery_ru` → версия (например `8.3.27.1688`).
 2. `admin_tool/importer.py` создаёт файл `databases/help_<version>.db`.
 
 ### Схема
 
 - `meta` — версия, дата создания.
-- `syntax_objects` — объекты, типы, конструкции (`category`: object, type, structure).
-- `syntax_methods` — методы, свойства, события (привязка к `object_id`).
-- `help_search` (FTS5) — индекс для `search_syntax` (name, full_name, signature, description).
+- `syntax_objects` — объекты, типы, конструкции, темы языка запросов.
+  - BSL: `category` = object, type, structure.
+  - Запросы: `category` = query_keyword, query_function, query_statement, query_operator, query_literal, query_article.
+  - `parent_name` — `topic_id` темы запроса (имя файла в `shquery_ru`).
+- `syntax_methods` — методы, свойства, события; для запросов — одна запись с синтаксисом, примером, `see_also` в `params_json`.
+- `help_search` (FTS5) — индекс для `search_syntax` и `search_query` (name, full_name, signature, description).
+- `meta.has_query_help`, `meta.query_topics_count` — флаг и счётчик тем запросов.
 
 ### Версии платформы
 

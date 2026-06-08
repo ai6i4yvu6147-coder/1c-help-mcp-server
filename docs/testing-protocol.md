@@ -18,6 +18,15 @@
 5. `search_syntax` — `Выполнить` (ожидается `Запрос.Выполнить` в топе).
 6. `validate_code` — ложный `Создать()`, корректный `СоздатьЭлемент()`.
 
+### Чеклист (query help, после импорта shquery_ru)
+
+1. `list_query_topics(category="function")` — непустой список.
+2. `get_query_syntax(name="ЕСТЬNULL")` — описание и пример.
+3. `get_query_syntax(name="WhereStatement")` — поиск по topic_id.
+4. `search_query(query="ГДЕ")` — `WhereStatement` в топе.
+5. `search_query(query="ВЫБРАТЬ")` — ключевое слово, не BSL `Выбрать`.
+6. `search_syntax(query="ВЫБРАТЬ")` — по-прежнему BSL-результаты.
+
 ### Запрещено агенту
 
 - Запускать `scripts/test_tools.py` или аналоги «вместо MCP».

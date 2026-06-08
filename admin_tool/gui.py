@@ -98,14 +98,18 @@ class AdminApp:
         return self._db_entries[idx]
 
     def _is_valid_help_root(self, root_path: Path) -> bool:
-        return (root_path / "shcntx_ru").exists() or (root_path / "shlang_ru").exists()
+        return (
+            (root_path / "shcntx_ru").exists()
+            or (root_path / "shlang_ru").exists()
+            or (root_path / "shquery_ru").exists()
+        )
 
     def _validate_help_root(self, root_path: Path) -> bool:
         if self._is_valid_help_root(root_path):
             return True
         messagebox.showerror(
             "Ошибка",
-            "В выбранной папке нет shcntx_ru или shlang_ru.\n"
+            "В выбранной папке нет shcntx_ru, shlang_ru или shquery_ru.\n"
             "Выберите корневую папку, где лежат эти каталоги.",
         )
         return False
@@ -133,7 +137,7 @@ class AdminApp:
             if use_saved:
                 return Path(saved)
         return self._pick_help_root(
-            "Выберите папку с распакованной справкой (shcntx_ru, shlang_ru)",
+            "Выберите папку с распакованной справкой (shcntx_ru, shlang_ru, shquery_ru)",
             saved if saved and Path(saved).is_dir() else None,
         )
 
@@ -155,7 +159,7 @@ class AdminApp:
 
     def _add_help(self):
         root_path = self._pick_help_root(
-            "Выберите папку с распакованной справкой (shcntx_ru, shlang_ru)"
+            "Выберите папку с распакованной справкой (shcntx_ru, shlang_ru, shquery_ru)"
         )
         if not root_path:
             return

@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Parser for shcntx_ru and shlang_ru (unpacked HBK help)."""
+"""Parser for shcntx_ru, shlang_ru and shquery_ru (unpacked HBK help)."""
 import re
 from pathlib import Path
 from bs4 import BeautifulSoup
 from typing import Iterator
+
+from shared.query_parser import parse_query_sources
 
 
 def _extract_text(el) -> str:
@@ -224,7 +226,7 @@ def _walk_shcntx_objects(shcntx: Path) -> Iterator[tuple[Path, Path | None]]:
 
 def parse_help_sources(root_path: Path) -> Iterator[dict]:
     """
-    Parse shcntx_ru and shlang_ru from root_path.
+    Parse shcntx_ru, shlang_ru and shquery_ru from root_path.
     Yields dicts: {name, full_name, category, description, methods: [...], source}
     """
     shcntx = root_path / "shcntx_ru"
@@ -294,3 +296,10 @@ def parse_help_sources(root_path: Path) -> Iterator[dict]:
                 if key not in seen_objects:
                     seen_objects.add(key)
                     yield parsed
+
+    # shquery_ru: query language syntax
+    for item in parse_query_sources(root_path):
+        key = item.get("parent_name") or item.get("name", "")
+        if key not in seen_objects:
+            seen_objects.add(key)
+            yield item
