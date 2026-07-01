@@ -1,11 +1,43 @@
-## Документация проекта
+## Project documentation
 
-Цель этой папки — дать **структурированный контекст** (для ИИ и разработчиков), не раздувая корневой readme.
+Structured context for AI agents and developers. Root overview: [`../README.md`](../README.md).
 
-### С чего начать (порядок чтения)
+**Role:** Sub · group `1c-cursor` · Head `1c-admin-tool`.
 
-1. `agent-onboarding.md` — быстрый контекст + политики проекта (самое важное).
-2. `architecture.md` — как устроен поток данных и какие части кода за что отвечают.
-3. `mcp-tools.md` — какие инструменты MCP есть и как ими пользоваться.
-4. `database.md` — что хранится в SQLite (и почему **нет миграций**).
-5. `testing-protocol.md` — как здесь принято проверять изменения на «боевом» MCP.
+### Reading order (canon `canons/documentation.md`)
+
+1. [`agent-onboarding.md`](agent-onboarding.md) — project type, policies, group-sync
+2. [`todo.md`](todo.md) — backlog; **check unprocessed packets in** `group/inbox/`
+3. [`architecture.md`](architecture.md) — data flow and components
+4. Domain specs (below)
+5. [`group/integration.md`](group/integration.md) — Head link and protocol state
+
+### Domain specs
+
+| Document | Content |
+|----------|---------|
+| [`mcp-tools.md`](mcp-tools.md) | MCP tools and call examples |
+| [`database.md`](database.md) | SQLite schema, no-migrations policy |
+| [`testing-protocol.md`](testing-protocol.md) | Verification on a connected MCP |
+
+### Group and normalization
+
+| Document | Content |
+|----------|---------|
+| [`group/integration.md`](group/integration.md) | Head, protocol state, inbox/outbox |
+| [`group/OPERATOR-HANDOFF.md`](group/OPERATOR-HANDOFF.md) | Manual packet delivery between repos |
+| [`group/templates/`](group/templates/) | Sync packet templates |
+| [`canons/`](canons/) | Local WI canon copy |
+| [`normalize-record.md`](normalize-record.md) | Last normalize metadata |
+
+**Subagent and skills (canon 2.4.0):** `.cursor/agents/` — 1 (`doc-librarian`); `.cursor/skills/` — 4 (`normalize-project`, `canon-align`, `maintain-docs`, `sync`).
+
+### Group-sync CLI
+
+```powershell
+python scripts/project-doctor.py --type Sub
+python scripts/sync-status.py --repo .
+python scripts/protocol-snapshot.py --status --repo .
+```
+
+Sync packets in `group/inbox/` and `group/outbox/` are ephemeral (in `.gitignore`); delivery — operator per [`group/OPERATOR-HANDOFF.md`](group/OPERATOR-HANDOFF.md); processing — skill **`sync`**; delete after processing.

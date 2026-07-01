@@ -1,6 +1,6 @@
-## Архитектура
+## Architecture
 
-### Поток данных (high level)
+### Data flow (high level)
 
 ```mermaid
 flowchart LR
@@ -15,29 +15,44 @@ flowchart LR
   Resolver["shared/version_resolver.py"] --> Tools
 ```
 
-### Основные компоненты
+### Main components
 
-- **Парсер справки**: `shared/help_parser.py` + `shared/query_parser.py`
-  - Вход: корневая папка с `shcntx_ru`, `shlang_ru` и/или `shquery_ru` (распакованные `.hbk`).
-  - Выход BSL: объекты платформы, методы/свойства, типы и конструкции языка.
-  - Выход запросов: ключевые слова, функции, предложения, операторы (`category`: `query_*`).
-  - `parent_name` в БД хранит `topic_id` файла (`WhereStatement`, `ISNULL`).
+- **Help parser**: `shared/help_parser.py` + `shared/query_parser.py`
+  - Input: root folder with `shcntx_ru`, `shlang_ru`, and/or `shquery_ru` (extracted `.hbk`).
+  - BSL output: platform objects, methods/properties, language types and constructs.
+  - Query output: keywords, functions, clauses, operators (`category`: `query_*`).
+  - `parent_name` in the DB stores the file `topic_id` (`WhereStatement`, `ISNULL`).
 
-- **Построение SQLite**: `admin_tool/importer.py` + `shared/db_manager.py`
-  - Одна БД на версию платформы: `help_8_3_27.db`.
-  - FTS5 (`help_search`) для полнотекстового поиска BSL и запросов.
-  - `meta.has_query_help`, `meta.query_topics_count` — наличие справки по запросам.
+- **SQLite build**: `admin_tool/importer.py` + `shared/db_manager.py`
+  - One DB per platform version: `help_8_3_27.db`.
+  - FTS5 (`help_search`) for full-text BSL and query search.
+  - `meta.has_query_help`, `meta.query_topics_count` — query help availability.
 
-- **MCP сервер**: `server/server.py` — 9 инструментов (6 BSL + 3 query).
+- **MCP server**: `server/server.py` — 9 tools (6 BSL + 3 query).
 
-- **Инструменты**: `server/tools.py` — BSL tools и отдельные `get_query_syntax`, `search_query`, `list_query_topics`.
+- **Tools**: `server/tools.py` — BSL tools and separate `get_query_syntax`, `search_query`, `list_query_topics`.
 
-### Runtime vs исходники
+### Runtime vs sources
 
-| | Исходники (репозиторий) | Portable (соседняя папка) |
+| | Sources (repository) | Portable (sibling folder) |
 |---|---|---|
-| Код | `admin_tool/`, `server/`, `shared/` | `Admin/`, `Server/` (exe) |
-| Базы | не хранятся | `databases/*.db` |
-| Конфиг | `config.json` (`databases_dir: databases`) | `config.json` (`databases_dir: ../databases`) |
+| Code | `admin_tool/`, `server/`, `shared/` | `Admin/`, `Server/` (exe) |
+| Databases | not stored | `databases/*.db` |
+| Config | `config.json` (`databases_dir: databases`) | `config.json` (`databases_dir: ../databases`) |
 
-Сборка: `build_all.bat` → `../1c_help_mcp_server_Portable/`. Пути в коде **относительные**; после переноса portable обновите `command` в конфиге MCP-клиента.
+Build: `build_all.bat` → `../1c_help_mcp_server_Portable/`. Paths in code are **relative**; after moving portable, update `command` in the MCP client config.
+
+### Position in the group (Sub)
+
+```mermaid
+flowchart LR
+  Head["1c-admin-tool (Head)"]
+  HelpMcp["1c-help-mcp (this repo)"]
+  Portable["Portable MCP runtime"]
+  Head -->|"protocol_offer / sync_delta"| HelpMcp
+  HelpMcp --> Portable
+```
+
+- **Runtime** — fully autonomous: Admin + MCP Server + SQLite, no Hub required.
+- **Documentation and managed-tool contract** — synced with Head via `docs/group/inbox|outbox/` (see [`group/integration.md`](group/integration.md)).
+- Sub does **not** store the shared protocol canon; baseline appears in `docs/group/protocol-ref/epoch<N>/` after reconcile.

@@ -2,3 +2,4 @@ mcp==1.26.0
 beautifulsoup4==4.14.3
 lxml==6.0.2
 pyinstaller==6.19.0
+pyyaml>=6.0

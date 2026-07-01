@@ -41,3 +41,9 @@ desktop.ini
 
 # macOS
 .DS_Store
+
+# Normalize / group-sync (ephemeral)
+plans/
+scratch/
+docs/group/inbox/
+docs/group/outbox/
