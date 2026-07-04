@@ -1,17 +1,21 @@
-# Shared — канон группы 1c-cursor
+# Shared — group canon 1c-cursor
 
-Общие спецификации для Head и Sub (`1c-config-mcp`, `1c-data-mcp`, `1c-help-mcp`).
+Shared specifications for Head and Sub (`1c-config-mcp`, `1c-data-mcp`, `1c-help-mcp`).
 
-| Документ | Содержание |
-|----------|------------|
+| Document | Contents |
+|----------|----------|
 | [`protocol-v1.md`](protocol-v1.md) | Consolidated Protocol v1 |
 | [`protocol-v1.0.1-addendum.md`](protocol-v1.0.1-addendum.md) | schemas, discovery, exit codes |
 | [`protocol-v1.0.2-addendum.md`](protocol-v1.0.2-addendum.md) | Hub persistence, reconcile, IDs |
 | [`protocol-v1.0.3-addendum.md`](protocol-v1.0.3-addendum.md) | UTF-8 JSON CLI encoding (no BOM) |
+| [`protocol-v1.0.4-addendum.md`](protocol-v1.0.4-addendum.md) | data-mcp sealed credentials, Hub D-MCP password (merge 2026-07-01) |
+| [`protocol-v1.0.5-addendum.md`](protocol-v1.0.5-addendum.md) | data-mcp canonical CLI write surface (ack 2026-07-02) |
+| [`protocol-v1.0.6-addendum.md`](protocol-v1.0.6-addendum.md) | passive Hub + agent `unlock_credentials` (ack 2026-07-02) |
 | [`registry-mapping.md`](registry-mapping.md) | Hub ↔ config-mcp mapping (agreed 2026-06-28) |
+| [`registry-mapping-data-mcp.md`](registry-mapping-data-mcp.md) | Hub ↔ data-mcp mapping (agreed 2026-07-01) |
 
-При конфликте версий протокола: **v1.0.3 > v1.0.2 > v1.0.1 > v1**.
+On protocol version conflict: **v1.0.6 > v1.0.5 > v1.0.4 > v1.0.3 > v1.0.2 > v1.0.1 > v1**.
 
-Редактирование канона — только на Head; доставка Sub — пакеты через outbox/inbox (оператор: `docs/group/OPERATOR-HANDOFF.md`).
+Canon edits — Head only; delivery to Sub — hub threads in `GROUP-HUB.md` and skill **`sync`** (see [`../README.md`](../README.md), [`../../canons/group-sync.md`](../../canons/group-sync.md)).
 
-Hub-специфика реализации (integration, архив переговоров) — [`../admin-hub/`](../admin-hub/).
+Hub-specific implementation (integration, negotiation archive) — [`../admin-hub/`](../admin-hub/).

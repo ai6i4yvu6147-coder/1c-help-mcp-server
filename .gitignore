@@ -29,6 +29,7 @@ shlang_ru/
 .idea/
 .vscode/
 *.code-workspace
+.cursor/settings.local.json
 
 # Временные файлы
 *.log
@@ -45,5 +46,5 @@ desktop.ini
 # Normalize / group-sync (ephemeral)
 plans/
 scratch/
-docs/group/inbox/
-docs/group/outbox/
+.tasks/
+docs/group/exports/

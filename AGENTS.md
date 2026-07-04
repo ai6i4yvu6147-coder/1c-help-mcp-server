@@ -6,14 +6,14 @@
 
 Full context is in `docs/`:
 
-1. `docs/agent-onboarding.md` — policies and project type
-2. `docs/todo.md` — backlog and unprocessed inbox packets
-3. `docs/architecture.md` — data flow and components
+1. `docs/agent-map.md` — entry: policies, directory map, hub triggers
+2. `docs/todo.md` — backlog; check `## Hub pending`
+3. `docs/architecture.md` — data flow, components, product policies
 4. `docs/README.md` — index and domain specs
 5. `docs/group/integration.md` — Head link and protocol state
 
-Before a session: if the operator reports packets in `docs/group/inbox/` — skill **`sync`** (outbox→inbox delivery is manual; see `docs/group/OPERATOR-HANDOFF.md`).
+Before a session: if `docs/todo.md` has `## Hub pending` — skill **`sync`**.
 
-On DB schema or import format changes — recreate databases via Admin (see `.cursor/rules/no-db-migrations.md`).
+On DB schema or import format changes — recreate databases via Admin (see `.cursor/rules/no-db-migrations.mdc`).
 
-Structure check: `python scripts/project-doctor.py --type Sub`.
+Structure check: `python scripts/project-doctor.py --repo . --type Sub`.

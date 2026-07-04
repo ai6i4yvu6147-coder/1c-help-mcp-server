@@ -1,11 +1,12 @@
 # TODO
 
+## Hub pending
+
 ## Admin Hub / group integration
 
 - **Status:** `stable`, epoch 0 (see [`group/integration.md`](group/integration.md))
-- **Layout 2.4.0:** 1 subagent (`.cursor/agents/`: `doc-librarian`); 4 skills — `normalize-project`, `canon-align`, `maintain-docs`, `sync`
-- **Inbox:** before each session check `docs/group/inbox/`; if packets present — skill **`sync`** (outbox→inbox delivery — [`group/OPERATOR-HANDOFF.md`](group/OPERATOR-HANDOFF.md)); delete after processing
-- After `stable` — sync managed-tool contract with Hub when needed
+- **Layout 2.5.0:** 1 subagent (`doc-librarian`); 4 skills — `normalize-project`, `canon-align`, `maintain-docs`, `sync`
+- Hub sync via `C:/projects/1c-admin-tool/GROUP-HUB.md`; skill **`sync`** when `## Hub pending` has items
 
 ## Product
 

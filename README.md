@@ -1,6 +1,6 @@
 # 1C Help MCP Server
 
-For AI agents and developers: see [`docs/`](docs/) (start with [`docs/agent-onboarding.md`](docs/agent-onboarding.md)). Brief AI context: [`README_AI.md`](README_AI.md).
+For AI agents and developers: see [`docs/`](docs/) (start with [`docs/agent-map.md`](docs/agent-map.md)).
 
 1C syntax help for AI agents (syntax assistant and code validation).
 

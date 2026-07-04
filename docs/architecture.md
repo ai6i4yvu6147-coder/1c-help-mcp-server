@@ -47,12 +47,30 @@ Build: `build_all.bat` → `../1c_help_mcp_server_Portable/`. Paths in code are 
 ```mermaid
 flowchart LR
   Head["1c-admin-tool (Head)"]
+  Hub["GROUP-HUB.md"]
   HelpMcp["1c-help-mcp (this repo)"]
   Portable["Portable MCP runtime"]
-  Head -->|"protocol_offer / sync_delta"| HelpMcp
+  Head --> Hub
+  Hub -->|"hub threads"| HelpMcp
   HelpMcp --> Portable
 ```
 
 - **Runtime** — fully autonomous: Admin + MCP Server + SQLite, no Hub required.
-- **Documentation and managed-tool contract** — synced with Head via `docs/group/inbox|outbox/` (see [`group/integration.md`](group/integration.md)).
+- **Documentation and managed-tool contract** — synced with Head via hub threads at `C:/projects/1c-admin-tool/GROUP-HUB.md` (skill **`sync`**; see [`group/integration.md`](group/integration.md)).
 - Sub does **not** store the shared protocol canon; baseline appears in `docs/group/protocol-ref/epoch<N>/` after reconcile.
+
+### Product policies
+
+- **NO_DB_MIGRATIONS**: never write migrations or conversions for existing SQLite databases. After schema or import logic changes, databases are **always recreated** via `admin_tool` from help sources (see `.cursor/rules/no-db-migrations.mdc`).
+- **Testing**: functional verification uses the live MCP after the user rebuilds the server and reconnects MCP in the IDE. Verification — **only via MCP tool calls**, starting with `list_help_versions`; no direct SQLite reads and no Python workaround scripts.
+- **Sources vs runtime (portable)**: repository sources must not contain runtime state (`databases/*.db`). Databases live in the portable instance (`../1c_help_mcp_server_Portable/databases/`) and are created via Admin. The agent changes sources; the user rebuilds portable/server and recreates databases if needed.
+- **Parser: rely on real HBK**: when extending `shared/help_parser.py` / `shared/query_parser.py`, inspect real HTML from unpacked help. Sources live outside the repo (folder with `shcntx_ru` / `shlang_ru` / `shquery_ru`).
+- **BSL vs query language**: built-in language — `get_syntax`, `search_syntax`; query text (`ВЫБРАТЬ`, `ЕСТЬNULL`) — `get_query_syntax`, `search_query`, `list_query_topics`.
+
+### Domain specs
+
+| Document | Content |
+|----------|---------|
+| [`mcp-tools.md`](mcp-tools.md) | MCP tools and call examples |
+| [`database.md`](database.md) | SQLite schema, no-migrations policy |
+| [`testing-protocol.md`](testing-protocol.md) | Verification on a connected MCP |

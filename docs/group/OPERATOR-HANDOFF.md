@@ -1,54 +1,34 @@
-# Operator handoff — групповая синхронизация
+# Operator handoff — учётные данные и деплой
 
-Шаблон для `docs/group/OPERATOR-HANDOFF.md` в Head/Sub (заполняется при normalize).
-
-Агенты пишут пакеты в **outbox**; оператор копирует в **inbox** соседнего репозитория и сообщает агенту: «inbox готов» / «обработай inbox».
+Human-tier — русский OK. В хаб-модели (canon 2.5.0) синхронизация протокола идёт через `GROUP-HUB.md` — оператор **не копирует пакеты** между репозиториями. За оператором остаются вещи вне контекста агента: деплой portable MCP.
 
 ---
 
-## Пути (заполнить)
+## Репозитории группы
 
-| Роль | Репозиторий |
-|------|-------------|
-| Head | `C:/projects/1c-admin-tool` |
-| Sub `1c-help-mcp` | `C:/projects/1c-help-mcp` |
+| Роль | Репозиторий | Путь |
+|------|-------------|------|
+| Head | `1c-admin-tool` | `C:/projects/1c-admin-tool` |
+| Sub `1c-help-mcp` | `1c-help-mcp` | `C:/projects/1c-help-mcp` |
 
----
-
-## Копирование
-
-### Head → Sub
-
-| Откуда | Куда |
-|--------|------|
-| `Head/docs/group/outbox/<sub-id>/*.md` | `Sub/docs/group/inbox/` |
-| `Head/docs/group/outbox/<sub-id>/protocol-snapshot-*` | `Sub/docs/group/inbox/` |
-| `Head/docs/group/outbox/<sub-id>/review-snapshot-*` | `Sub/docs/group/inbox/` |
-
-### Sub → Head
-
-| Откуда | Куда |
-|--------|------|
-| `Sub/docs/group/outbox/*.md` | `Head/docs/group/inbox/<sub-id>/` |
-| `Sub/docs/group/outbox/protocol-snapshot-*` | `Head/docs/group/inbox/<sub-id>/` |
+Хаб: `C:/projects/1c-admin-tool/GROUP-HUB.md`. Sub обращается к нему по `head.path` из `group.manifest.yaml`.
 
 ---
 
-## Чеклист цикла согласования
+## Деплой portable MCP
 
-1. Head: `/sync-base <sub>` или `/sync <sub> <topic>` → файлы в outbox Head.
-2. Оператор: копия в Sub inbox.
-3. Sub: «обработай inbox» (skill `sync`) → dispute или ack в outbox Sub.
-4. Оператор: копия в Head inbox.
-5. Head: «обработай inbox» → merge или закрытие ack.
-6. Повторять 2–5 до `protocol_ack` и stable.
-7. После ack: удалить обработанные файлы из inbox; убрать устаревшие пакеты из outbox отправителя.
-8. Inbox/outbox **не коммитить** в git.
+| Шаг | Команда / действие | Ответственный |
+|-----|--------------------|---------------|
+| Сборка | `build_all.bat` → `../1c_help_mcp_server_Portable/` | оператор |
+| Импорт справки | `Admin.bat` → «Add help» → папка с `shcntx_ru`, `shlang_ru`, `shquery_ru` | оператор |
+| MCP в IDE | `command` в конфиге клиента → `Server\1c-help-server.exe` | оператор |
+
+Агент меняет исходники; оператор пересобирает portable и переподключает MCP для проверки.
 
 ---
 
 ## Подсказка
 
 ```powershell
-python scripts/sync-status.py --operator-check --repo .
+python scripts/sync-status.py --repo .
 ```
