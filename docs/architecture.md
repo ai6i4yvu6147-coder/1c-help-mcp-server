@@ -56,7 +56,7 @@ flowchart LR
 ```
 
 - **Runtime** — fully autonomous: Admin + MCP Server + SQLite, no Hub required.
-- **Documentation and managed-tool contract** — synced with Head via hub threads at `C:/projects/1c-admin-tool/GROUP-HUB.md` (skill **`sync`**; see [`group/integration.md`](group/integration.md)).
+- **Documentation and managed-tool contract** — synced with Head via hub threads at `C:/projects/1c-admin-tool/GROUP-HUB.md` · `C:/repo/1c-config-admin-tool/GROUP-HUB.md` (skill **`sync`**; see [`group/integration.md`](group/integration.md)).
 - Sub does **not** store the shared protocol canon; baseline appears in `docs/group/protocol-ref/epoch<N>/` after reconcile.
 
 ### Product policies

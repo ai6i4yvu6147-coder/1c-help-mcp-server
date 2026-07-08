@@ -32,4 +32,4 @@ python scripts/sync-status.py --repo .
 python scripts/protocol-snapshot.py --status --repo .
 ```
 
-Hub state: `C:/projects/1c-admin-tool/GROUP-HUB.md`. Processing — skill **`sync`** when `## Hub pending` has items.
+Hub state: `C:/projects/1c-admin-tool/GROUP-HUB.md` · `C:/repo/1c-config-admin-tool/GROUP-HUB.md`. Processing — skill **`sync`** when `## Hub pending` has items.

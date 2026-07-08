@@ -4,7 +4,7 @@ Single entry point for the orchestrator (the main agent).
 
 ## Type
 
-**Sub (subordinate)** — module `1c-help-mcp` in group `1c-cursor`. Head: `1c-admin-tool` @ `C:/projects/1c-admin-tool`.
+**Sub (subordinate)** — module `1c-help-mcp` in group `1c-cursor`. Head: `1c-admin-tool` @ `C:/projects/1c-admin-tool` · `C:/repo/1c-config-admin-tool`.
 
 ## What this project is
 
@@ -69,7 +69,7 @@ Functional verification: rebuild portable, reconnect MCP in the IDE, call tools 
 
 ## Hub
 
-- **Hub:** `C:/projects/1c-admin-tool/GROUP-HUB.md`
+- **Hub:** `C:/projects/1c-admin-tool/GROUP-HUB.md` · `C:/repo/1c-config-admin-tool/GROUP-HUB.md`
 - **Sub id:** `1c-help-mcp` — edit only own registry row and threads
 
 Sync triggers → skill `sync`: `## Hub pending` in todo, user `/sync 1c-help-mcp <topic>`, registry `stale`, or group-critical edit in Head `docs/group/shared/`.

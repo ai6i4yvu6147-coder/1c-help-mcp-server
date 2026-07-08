@@ -4,7 +4,7 @@
 
 - **group id:** `1c-cursor`
 - **head id:** `1c-admin-tool`
-- **hub:** `C:/projects/1c-admin-tool/GROUP-HUB.md`
+- **hub:** `C:/projects/1c-admin-tool/GROUP-HUB.md` · `C:/repo/1c-config-admin-tool/GROUP-HUB.md`
 
 ## Protocol state
 
@@ -21,7 +21,7 @@
 
 ## Sync (hub)
 
-State lives in the Head hub at `C:/projects/1c-admin-tool/GROUP-HUB.md`. This project edits only its own `sub_id` registry row and threads.
+State lives in the Head hub (`head.paths` in `group.manifest.yaml`): `C:/projects/1c-admin-tool/GROUP-HUB.md` · `C:/repo/1c-config-admin-tool/GROUP-HUB.md`. This project edits only its own `sub_id` registry row and threads.
 
 Session start: if `docs/todo.md` has `## Hub pending`, run skill **`sync`**.
 

@@ -6,7 +6,7 @@
 
 - **Status:** `stable`, epoch 0 (see [`group/integration.md`](group/integration.md))
 - **Layout 2.5.0:** 1 subagent (`doc-librarian`); 4 skills — `normalize-project`, `canon-align`, `maintain-docs`, `sync`
-- Hub sync via `C:/projects/1c-admin-tool/GROUP-HUB.md`; skill **`sync`** when `## Hub pending` has items
+- Hub sync via `C:/projects/1c-admin-tool/GROUP-HUB.md` · `C:/repo/1c-config-admin-tool/GROUP-HUB.md`; skill **`sync`** when `## Hub pending` has items
 
 ## Product
 
