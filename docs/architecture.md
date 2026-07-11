@@ -32,7 +32,7 @@ flowchart LR
   - FTS5 (`help_search`) for full-text BSL and query search.
   - `meta.has_query_help`, `meta.query_topics_count` — query help availability.
 
-- **MCP server**: `server/server.py` — 15 tools (6 BSL + 3 query + 6 constructor).
+- **MCP server**: `server/server.py` — 24 tools (6 BSL + 3 query + 15 constructor: 6 processor + 9 report). Report tools split by `create_report(kind=...)`: `skd` (`set_report_skd`) or `macet` (`set_report_attributes`/`set_report_tabular_sections`/`set_report_form`/`set_report_template`) — see `docs/mcp-tools.md`.
 
 - **Tools**: `server/tools.py` — BSL and query tools; `server/constructor_tools.py` — metadata constructor.
 

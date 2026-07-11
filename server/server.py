@@ -235,6 +235,199 @@ async def list_tools() -> list[Tool]:
                 "required": ["processor", "path"],
             },
         ),
+        Tool(
+            name="create_report",
+            description="Конструктор: создать проект внешнего отчёта. kind=skd (по умолчанию) — отчёт на СКД "
+                        "(запрос+поля+layout, без своей формы). kind=macet — отчёт на макете: свои реквизиты/"
+                        "табличные части вместо параметров СКД, своя управляемая форма, макет из областей "
+                        "(ПолучитьОбласть/Вывести в модуле). См. set_report_attributes, set_report_tabular_sections, "
+                        "set_report_form, set_report_template для kind=macet.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Имя отчёта (идентификатор 1С)"},
+                    "synonym": {"type": "string", "description": "Синоним на русском"},
+                    "kind": {"type": "string", "description": "skd (по умолчанию) или macet", "default": "skd"},
+                },
+                "required": ["name", "synonym"],
+            },
+        ),
+        Tool(
+            name="set_report_attributes",
+            description="Конструктор (kind=macet): задать собственные реквизиты отчёта — заменяют параметры СКД "
+                        "(поля отбора/периода/флаги на самом объекте отчёта). Форма считывает и передаёт их напрямую.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "report": {"type": "string", "description": "Имя отчёта"},
+                    "attributes": {
+                        "type": "array",
+                        "description": "Реквизиты: [{name, type_raw, synonym_ru?, qualifiers?}]",
+                        "items": {"type": "object"},
+                    },
+                },
+                "required": ["report", "attributes"],
+            },
+        ),
+        Tool(
+            name="set_report_tabular_sections",
+            description="Конструктор (kind=macet): задать табличные части отчёта — для многострочных параметров "
+                        "(напр. список организаций, список периодов), как Организации/ПериодыОтчета на ФТ_ОтчетБДР.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "report": {"type": "string", "description": "Имя отчёта"},
+                    "tabular_sections": {
+                        "type": "array",
+                        "description": "[{name, synonym_ru?, attributes: [{name, type_raw, ...}]}]",
+                        "items": {"type": "object"},
+                    },
+                },
+                "required": ["report", "tabular_sections"],
+            },
+        ),
+        Tool(
+            name="set_report_form",
+            description="Конструктор (kind=macet): задать управляемую форму отчёта (поля, группы, таблицы, "
+                        "команды, события). Форма — своя (не платформенная общая форма СКД). Параметры как у set_form.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "report": {"type": "string", "description": "Имя отчёта"},
+                    "form_name": {"type": "string", "description": "Имя формы (идентификатор), по умолчанию «Форма»"},
+                    "form_synonym": {"type": "string", "description": "Синоним формы"},
+                    "fields": {"type": "array", "items": {"type": "object"}, "description": "Плоские поля формы"},
+                    "groups": {"type": "array", "items": {"type": "object"}, "description": "Группы и таблицы"},
+                    "commands": {"type": "array", "items": {"type": "object"}, "description": "Команды формы"},
+                    "events": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "События формы: [{event, handler}]",
+                    },
+                    "spreadsheet_fields": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Поле(-я) табличного документа для показа результата: [{name, title_ru?, "
+                                       "events?}] — обычно одно, [{name: 'ТабДок'}]. Это единственный способ "
+                                       "показать в форме ТабДок.Вывести(...); обычное поле (fields) для этого "
+                                       "не подходит (реквизит должен быть типа ТабличныйДокумент).",
+                    },
+                },
+                "required": ["report"],
+            },
+        ),
+        Tool(
+            name="set_report_template",
+            description="Конструктор (kind=macet): задать табличный макет отчёта — именованные области строк, "
+                        "заполняемые в модуле через Макет.ПолучитьОбласть(\"Имя\")/ТабДок.Вывести(Область, Уровень). "
+                        "Свобода колонок/группировок обеспечивается количеством областей и BSL-кодом, а не схемой.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "report": {"type": "string", "description": "Имя отчёта"},
+                    "template_name": {"type": "string", "description": "Имя макета, по умолчанию «Макет»"},
+                    "areas": {
+                        "type": "array",
+                        "description": "[{name, rows: [[{col, text?|parameter?, colspan?, bold?, align?, "
+                                       "border?, number_format?}, ...], ...]}]",
+                        "items": {"type": "object"},
+                    },
+                },
+                "required": ["report", "areas"],
+            },
+        ),
+        Tool(
+            name="set_report_skd",
+            description="Конструктор: задать схему компоновки данных отчёта (запрос, поля, параметры, итоги, макет). "
+                        "Группировки и отбор — в layout (rows/columns/selection), не в тексте запроса.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "report": {"type": "string", "description": "Имя отчёта"},
+                    "query": {"type": "string", "description": "Текст запроса набора данных"},
+                    "fields": {
+                        "type": "array",
+                        "description": "Поля: [{data_path, title_ru?, role?, format_string?}]",
+                        "items": {"type": "object"},
+                    },
+                    "parameters": {
+                        "type": "array",
+                        "description": "Параметры СКД: [{name, value_type, title_ru?, use_restriction?, expression?, "
+                                       "use?, value_list_allowed?, default_value?, default_nil?, "
+                                       "default_standard_period?}]. Канонический период (не пишите &Период.ДатаНачала "
+                                       "в тексте запроса): Период (v8:StandardPeriod, use=Always, "
+                                       "default_standard_period=true) + НачалоПериода/КонецПериода (xs:dateTime, "
+                                       "use_restriction=true, expression=&Период.ДатаНачала / &Период.ДатаОкончания) "
+                                       "— в тексте запроса используйте &НачалоПериода/&КонецПериода.",
+                        "items": {"type": "object"},
+                    },
+                    "calculated_fields": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                    },
+                    "totals": {
+                        "type": "array",
+                        "description": "Итоговые поля: [{data_path, expression}]",
+                        "items": {"type": "object"},
+                    },
+                    "layout": {
+                        "type": "object",
+                        "description": "Макет, архетип по mode (или по форме, если mode не указан): "
+                                       "mode=group_with_details — {group_by: [{field, group_type?}, ...], selection, "
+                                       "filter_items?, data_parameters?} — сгруппированный список с детальными "
+                                       "строками; несколько полей в group_by дают вложенные уровни группировки с "
+                                       "подытогами на каждом уровне (напр. Исполнитель, затем Задача) — "
+                                       "для группировки+детализации используйте это, НЕ pivot_table. "
+                                       "mode=pivot_table — {rows, columns, selection, ...} — сводная таблица, "
+                                       "обязательны и rows, и columns. mode=flat — {selection, ...} — плоский список.",
+                    },
+                },
+                "required": ["report"],
+            },
+        ),
+        Tool(
+            name="set_report_module_code",
+            description="Конструктор: задать текст модуля отчёта. module=ObjectModule (по умолчанию) — "
+                        "СведенияОВнешнейОбработке и серверная логика. module=FormModule — модуль формы "
+                        "(kind=macet; напр. обработчик команды «Сформировать»).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "report": {"type": "string", "description": "Имя отчёта"},
+                    "code": {"type": "string", "description": "Текст модуля BSL"},
+                    "module": {"type": "string", "description": "ObjectModule (по умолчанию) или FormModule", "default": "ObjectModule"},
+                },
+                "required": ["report", "code"],
+            },
+        ),
+        Tool(
+            name="validate_report",
+            description="Конструктор: проверить внешний отчёт (XML СКД, BSL).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "report": {"type": "string", "description": "Имя отчёта"},
+                    "version": {"type": "string", "description": "Версия справки для BSL-проверки, опционально"},
+                },
+                "required": ["report"],
+            },
+        ),
+        Tool(
+            name="export_report",
+            description="Конструктор: экспортировать внешний отчёт. path — родительский каталог; "
+                        "файлы пишутся в path/<ИмяОтчёта>/ (корневой XML: path/<Имя>/<Имя>.xml).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "report": {"type": "string", "description": "Имя отчёта"},
+                    "path": {
+                        "type": "string",
+                        "description": "Родительский каталог экспорта",
+                    },
+                },
+                "required": ["report", "path"],
+            },
+        ),
     ]
 
 
@@ -426,6 +619,118 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             text = _format_response(
                 f"Экспорт «{result['processor']}»:\n"
                 f"  каталог обработки: {result['processor_dir']}\n"
+                f"  открыть в Конфигураторе: {result['open_in_configurator']}\n"
+                f"Файлы (относительно {result['parent_dir']}):\n{files}",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "create_report":
+            result = constructor_tools.create_report(
+                name=arguments["name"],
+                synonym=arguments["synonym"],
+                kind=arguments.get("kind", "skd"),
+            )
+            text = _format_response(
+                f"Создан отчёт «{result['name']}» ({result['synonym_ru']}), kind={result['kind']}.",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "set_report_attributes":
+            result = constructor_tools.set_report_attributes(
+                report=arguments["report"],
+                attributes=arguments["attributes"],
+            )
+            text = _format_response(
+                f"Реквизиты отчёта «{result['name']}» обновлены ({len(result['attributes'])} шт.).",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "set_report_tabular_sections":
+            result = constructor_tools.set_report_tabular_sections(
+                report=arguments["report"],
+                tabular_sections=arguments["tabular_sections"],
+            )
+            text = _format_response(
+                f"Табличные части отчёта «{result['name']}» обновлены ({len(result['tabular_sections'])} шт.).",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "set_report_form":
+            result = constructor_tools.set_report_form(
+                report=arguments["report"],
+                form_name=arguments.get("form_name"),
+                form_synonym=arguments.get("form_synonym"),
+                fields=arguments.get("fields"),
+                groups=arguments.get("groups"),
+                commands=arguments.get("commands"),
+                events=arguments.get("events"),
+                spreadsheet_fields=arguments.get("spreadsheet_fields"),
+            )
+            text = _format_response(f"Форма «{result['form_name']}» отчёта «{result['name']}» обновлена.", result)
+            return [TextContent(type="text", text=text)]
+
+        if name == "set_report_template":
+            result = constructor_tools.set_report_template(
+                report=arguments["report"],
+                areas=arguments["areas"],
+                template_name=arguments.get("template_name"),
+            )
+            text = _format_response(
+                f"Макет «{result['template_name']}» отчёта «{result['name']}» обновлён ({result['area_count']} областей).",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "set_report_skd":
+            result = constructor_tools.set_report_skd(
+                report=arguments["report"],
+                query=arguments.get("query"),
+                fields=arguments.get("fields"),
+                parameters=arguments.get("parameters"),
+                calculated_fields=arguments.get("calculated_fields"),
+                totals=arguments.get("totals"),
+                layout=arguments.get("layout"),
+            )
+            text = _format_response(
+                f"СКД отчёта «{result['name']}» обновлена "
+                f"({result['field_count']} полей, layout={'да' if result['has_layout'] else 'нет'}).",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "set_report_module_code":
+            result = constructor_tools.set_report_module_code(
+                report=arguments["report"],
+                code=arguments["code"],
+                module=arguments.get("module", "ObjectModule"),
+            )
+            text = _format_response(
+                f"{result['module']} отчёта «{result['name']}» сохранён ({result['code_length']} симв.).",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "validate_report":
+            result = constructor_tools.validate_report(
+                report=arguments["report"],
+                version=arguments.get("version"),
+            )
+            text = _format_validate_project(result)
+            return [TextContent(type="text", text=text)]
+
+        if name == "export_report":
+            result = constructor_tools.export_report(
+                report=arguments["report"],
+                path=arguments["path"],
+            )
+            files = "\n".join(f"  - {f}" for f in result["files"])
+            text = _format_response(
+                f"Экспорт отчёта «{result['report']}»:\n"
+                f"  каталог: {result['report_dir']}\n"
                 f"  открыть в Конфигураторе: {result['open_in_configurator']}\n"
                 f"Файлы (относительно {result['parent_dir']}):\n{files}",
                 result,

@@ -28,8 +28,12 @@
 
 - `processor` — проект внешней обработки: имя, синоним, JSON-спеки формы и реквизитов.
 - `module` — тексты модулей (`ObjectModule`, `FormModule`) по имени обработки.
+- `report` — проект внешнего отчёта; `kind` (`skd` по умолчанию или `macet`) определяет, какие поля актуальны:
+  - `skd`: `schema_name`, `query_text`, `fields_json`, `parameters_json`, `calculated_json`, `totals_json`, `layout_json`.
+  - `macet`: `attributes_json`, `tabular_sections_json`, `form_name`/`form_synonym_ru`/`form_fields_json`/`form_groups_json`/`form_commands_json`/`form_events_json`/`form_spreadsheet_fields_json`, `template_name`/`template_areas_json`.
+- `report_module` — тексты модулей отчёта (`ObjectModule`; `FormModule` только для `kind=macet`) по имени отчёта.
 
-Экспорт через библиотеку `onec_metadata_schema` (3 XML + опциональные `.bsl`). См. `docs/metadata-constructor-plan.md`.
+Экспорт через библиотеку `onec_metadata_schema` (СКД: 3 XML; макет: `Forms/`+`Templates/`+опциональные `.bsl`, до 7 файлов). См. `docs/metadata-constructor-plan.md`, `docs/mcp-tools.md`, `docs/group/handoff-external-report-skd.md`, `docs/group/handoff-layout-report.md`.
 
 ### Версии платформы
 
