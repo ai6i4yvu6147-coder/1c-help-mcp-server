@@ -11,8 +11,12 @@ flowchart LR
   Importer --> SQLite["portable/databases/help_*.db"]
   Admin["admin_tool/gui.py"] --> Importer
   MCP["server/server.py"] --> Tools["server/tools.py"]
+  MCP --> ConstructorTools["server/constructor_tools.py"]
   Tools --> SQLite
   Resolver["shared/version_resolver.py"] --> Tools
+  ConstructorTools --> Constructor["shared/constructor/"]
+  ConstructorTools --> ConstructorDB["constructor.db"]
+  Constructor --> Lib["onec_metadata_schema"]
 ```
 
 ### Main components
@@ -28,9 +32,9 @@ flowchart LR
   - FTS5 (`help_search`) for full-text BSL and query search.
   - `meta.has_query_help`, `meta.query_topics_count` — query help availability.
 
-- **MCP server**: `server/server.py` — 9 tools (6 BSL + 3 query).
+- **MCP server**: `server/server.py` — 15 tools (6 BSL + 3 query + 6 constructor).
 
-- **Tools**: `server/tools.py` — BSL tools and separate `get_query_syntax`, `search_query`, `list_query_topics`.
+- **Tools**: `server/tools.py` — BSL and query tools; `server/constructor_tools.py` — metadata constructor.
 
 ### Runtime vs sources
 

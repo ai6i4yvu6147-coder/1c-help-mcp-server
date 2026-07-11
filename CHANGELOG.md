@@ -2,6 +2,10 @@
 
 ---
 
+## 2026-07-11
+
+- **Конструктор метаданных (Stage E):** подсистема `shared/constructor/` + `constructor.db`; 6 MCP tools (`create_processor`, `set_attributes`, `set_form`, `set_module_code`, `validate_project`, `export_project`); экспорт через `onec-metadata-schema`; зависимость в `requirements.txt`, PyInstaller hidden-imports.
+
 ## 2026-07-02
 
 - **Re-normalize 2.4.0 (Sub):** канон WI 2.4.0 — agent-cache tier на английском (`agent_docs_lang: en`); entry-point docs через doc-librarian; deprecations registry (пути 2.2.0/2.3.0 — уже отсутствуют); `docs/canons/` — English copy из WI; layout без изменений (1 agent + 4 skills); состояние протокола (`stable`, epoch 0, `protocol-ref`) без изменений.

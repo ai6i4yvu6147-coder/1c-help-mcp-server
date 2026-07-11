@@ -48,7 +48,9 @@ from onec_metadata_schema.builder import (
 | `set_form(processor, fields=[], groups=[], table=?, commands=[], events=?)` | параметры 1:1 с `build_form_layout` |
 | `set_module_code(processor, module, code)` | тело модуля |
 | `validate_project(processor)` | (1) `validate()` библиотеки над деревьями; (2) `validate_code`/`get_object_api` над BSL; (3) у каждого `Event`/`Command.Action` в спеке формы есть процедура в сохранённом модуле |
-| `export_project(processor, path)` | `build_*` + `serialize()` → 3-файловое дерево + модули |
+| `export_project(processor, path)` | `build_*` + `serialize()` → дерево в `path/<Name>/` + модули |
+
+**Каталог экспорта:** `path` — родительский контейнер (напр. `C:/fullAI`). Корневой XML: `path/<Name>/<Name>.xml`. Формы и модули: `path/<Name>/<Name>/Forms/...` (Configurator добавляет `<Name>/` относительно каталога корневого XML).
 
 Регистрация — по образцу `server/server.py` / `server/tools.py`.
 
@@ -58,7 +60,7 @@ from onec_metadata_schema.builder import (
 
 ## Открытые вопросы (не блокируют старт)
 
-- Заглушки обработчиков формы (`ПриИзменении`/`ПриОткрытии`) в MVP — по факту использования.
+- Заглушки обработчиков формы — **Events** в XML через `build_form_layout(events=...)`; legacy строки `["ПриОткрытии"]` мапятся на `OnOpen`.
 - `TabularSection` на уровне объекта, шаблон `СведенияОВнешнейОбработке()` — подключать только если конкретная обработка упрётся.
 
 ## Дальше

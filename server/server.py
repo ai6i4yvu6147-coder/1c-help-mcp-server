@@ -10,6 +10,7 @@ import mcp.server.stdio
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from server.tools import HelpTools
+from server.constructor_tools import ConstructorTools
 
 if getattr(sys, "frozen", False):
     application_path = Path(sys.executable).parent
@@ -30,6 +31,8 @@ if not databases_dir.is_absolute():
 default_version = config.get("default_version")
 
 tools = HelpTools(str(databases_dir), default_version)
+constructor_db_path = databases_dir / "constructor.db"
+constructor_tools = ConstructorTools(constructor_db_path, tools)
 app = Server("1c-help-server")
 
 
@@ -144,6 +147,94 @@ async def list_tools() -> list[Tool]:
                 "required": ["code"],
             },
         ),
+        Tool(
+            name="create_processor",
+            description="Конструктор метаданных: создать проект внешней обработки.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Имя обработки (идентификатор 1С)"},
+                    "synonym": {"type": "string", "description": "Синоним на русском"},
+                },
+                "required": ["name", "synonym"],
+            },
+        ),
+        Tool(
+            name="set_attributes",
+            description="Конструктор: задать объектные реквизиты внешней обработки.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "processor": {"type": "string", "description": "Имя обработки"},
+                    "attributes": {
+                        "type": "array",
+                        "description": "Реквизиты: [{name, type_raw, qualifiers?}]",
+                        "items": {"type": "object"},
+                    },
+                },
+                "required": ["processor", "attributes"],
+            },
+        ),
+        Tool(
+            name="set_form",
+            description="Конструктор: задать форму (поля, группы, команды, события). Параметры соответствуют build_form_layout.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "processor": {"type": "string", "description": "Имя обработки"},
+                    "fields": {"type": "array", "items": {"type": "object"}, "description": "Плоские поля формы"},
+                    "groups": {"type": "array", "items": {"type": "object"}, "description": "Группы и таблицы"},
+                    "commands": {"type": "array", "items": {"type": "object"}, "description": "Команды формы"},
+                    "events": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "События формы: [{event, handler}] — напр. {event: 'OnOpen', handler: 'ПриОткрытии'}",
+                    },
+                },
+                "required": ["processor"],
+            },
+        ),
+        Tool(
+            name="set_module_code",
+            description="Конструктор: задать текст модуля (ObjectModule или FormModule).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "processor": {"type": "string", "description": "Имя обработки"},
+                    "module": {"type": "string", "description": "ObjectModule или FormModule"},
+                    "code": {"type": "string", "description": "Текст модуля BSL"},
+                },
+                "required": ["processor", "module", "code"],
+            },
+        ),
+        Tool(
+            name="validate_project",
+            description="Конструктор: проверить проект (XML-структура, BSL, наличие обработчиков команд/событий).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "processor": {"type": "string", "description": "Имя обработки"},
+                    "version": {"type": "string", "description": "Версия справки для BSL-проверки, опционально"},
+                },
+                "required": ["processor"],
+            },
+        ),
+        Tool(
+            name="export_project",
+            description="Конструктор: экспортировать внешнюю обработку. path — родительский каталог; "
+                        "файлы пишутся в path/<ИмяОбработки>/ (корневой XML: path/<Имя>/<Имя>.xml).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "processor": {"type": "string", "description": "Имя обработки"},
+                    "path": {
+                        "type": "string",
+                        "description": "Родительский каталог экспорта (не каталог самой обработки)",
+                    },
+                },
+                "required": ["processor", "path"],
+            },
+        ),
     ]
 
 
@@ -153,6 +244,27 @@ def _format_response(text: str, structured: dict | None = None) -> str:
     if structured:
         parts.append("\n\n--- JSON ---\n" + json.dumps(structured, ensure_ascii=False, indent=2))
     return "\n".join(parts)
+
+
+def _format_validate_project(result: dict) -> str:
+    if result.get("ok"):
+        return _format_response("Проект прошёл проверку.", result)
+    lines = ["Проект не прошёл проверку:"]
+    for e in result.get("library_errors", []):
+        lines.append(f"  XML: {e}")
+    for e in result.get("bsl_errors", []):
+        mod = e.get("module", "")
+        if e.get("kind") == "unknown_object":
+            lines.append(
+                f"  BSL [{mod}] строка {e['line']}: {e['object']}.{e['method']}() — {e.get('message', '')}"
+            )
+        else:
+            lines.append(
+                f"  BSL [{mod}] строка {e['line']}: {e['object']}.{e['method']}() — метод не найден"
+            )
+    for h in result.get("missing_handlers", []):
+        lines.append(f"  Обработчик не найден в FormModule: {h}")
+    return _format_response("\n".join(lines), result)
 
 
 @app.call_tool()
@@ -250,6 +362,74 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         sug = f" → возможно: {e['suggestion']}" if e.get("suggestion") and "проверьте" not in str(e.get("suggestion", "")) else ""
                         lines.append(f"  Строка {e['line']}: {e['object']}.{e['method']}() — метод не найден в {e.get('api_object', '')}{sug}")
                 text = "\n".join(lines)
+            return [TextContent(type="text", text=text)]
+
+        if name == "create_processor":
+            result = constructor_tools.create_processor(
+                name=arguments["name"],
+                synonym=arguments["synonym"],
+            )
+            text = _format_response(
+                f"Создана обработка «{result['name']}» ({result['synonym_ru']}).",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "set_attributes":
+            result = constructor_tools.set_attributes(
+                processor=arguments["processor"],
+                attributes=arguments["attributes"],
+            )
+            text = _format_response(
+                f"Реквизиты обработки «{result['name']}» обновлены ({len(result['attributes'])} шт.).",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "set_form":
+            result = constructor_tools.set_form(
+                processor=arguments["processor"],
+                fields=arguments.get("fields"),
+                groups=arguments.get("groups"),
+                commands=arguments.get("commands"),
+                events=arguments.get("events"),
+            )
+            text = _format_response(f"Форма обработки «{result['name']}» обновлена.", result)
+            return [TextContent(type="text", text=text)]
+
+        if name == "set_module_code":
+            result = constructor_tools.set_module_code(
+                processor=arguments["processor"],
+                module=arguments["module"],
+                code=arguments["code"],
+            )
+            text = _format_response(
+                f"Модуль {result['module']} обработки «{result['name']}» сохранён ({result['code_length']} симв.).",
+                result,
+            )
+            return [TextContent(type="text", text=text)]
+
+        if name == "validate_project":
+            result = constructor_tools.validate_project(
+                processor=arguments["processor"],
+                version=arguments.get("version"),
+            )
+            text = _format_validate_project(result)
+            return [TextContent(type="text", text=text)]
+
+        if name == "export_project":
+            result = constructor_tools.export_project(
+                processor=arguments["processor"],
+                path=arguments["path"],
+            )
+            files = "\n".join(f"  - {f}" for f in result["files"])
+            text = _format_response(
+                f"Экспорт «{result['processor']}»:\n"
+                f"  каталог обработки: {result['processor_dir']}\n"
+                f"  открыть в Конфигураторе: {result['open_in_configurator']}\n"
+                f"Файлы (относительно {result['parent_dir']}):\n{files}",
+                result,
+            )
             return [TextContent(type="text", text=text)]
 
         return [TextContent(type="text", text=f"Неизвестный инструмент: {name}")]

@@ -1,4 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_submodules
+
+hiddenimports = ['sqlite3', 'json', 'asyncio', 'onec_metadata_schema', 'onec_metadata_schema.builder']
+hiddenimports += collect_submodules('onec_metadata_schema')
 
 
 a = Analysis(
@@ -6,7 +10,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('server', 'server'), ('shared', 'shared')],
-    hiddenimports=['sqlite3', 'json', 'asyncio'],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

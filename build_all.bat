@@ -17,6 +17,9 @@ pyinstaller --onedir --name "1c-help-server" --noconfirm ^
     --hidden-import=sqlite3 ^
     --hidden-import=json ^
     --hidden-import=asyncio ^
+    --hidden-import=onec_metadata_schema ^
+    --hidden-import=onec_metadata_schema.builder ^
+    --collect-submodules onec_metadata_schema ^
     --add-data "server;server" ^
     --add-data "shared;shared" ^
     server/server.py
