@@ -23,7 +23,7 @@ Indexes unpacked 1C platform help (`shcntx_ru`, `shlang_ru`, `shquery_ru`) into 
 - **Sources vs runtime**: repo sources must not contain runtime DBs (`databases/*.db`); databases live in portable `../1c_help_mcp_server_Portable/databases/`. Agent changes sources; user rebuilds portable and reconnects MCP.
 - **Parser**: when extending `shared/help_parser.py` / `shared/query_parser.py`, inspect real HTML from unpacked help (outside the repo).
 - **BSL vs query language**: built-in language — `get_syntax`, `search_syntax`; query text — `get_query_syntax`, `search_query`, `list_query_topics`.
-- **Group sync**: shared protocol canon only on Head `docs/group/shared/`; Sub updates via hub threads (skill **`sync`**).
+- **Group sync**: shared protocol canon lives on Head at `docs/group/shared/`; Sub reads it at `head.path` (no local copy) and updates via hub threads (skill **`sync`**).
 
 ## Directory map
 
@@ -62,7 +62,6 @@ For multi-file work without dev agents, the orchestrator implements directly. On
 build_all.bat                                          # → ../1c_help_mcp_server_Portable/
 python scripts/project-doctor.py --repo . --type Sub
 python scripts/sync-status.py --repo .
-python scripts/protocol-snapshot.py --status --repo .
 ```
 
 Functional verification: rebuild portable, reconnect MCP in the IDE, call tools per `docs/testing-protocol.md`.

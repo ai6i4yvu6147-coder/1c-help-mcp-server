@@ -4,37 +4,33 @@
 
 - **group id:** `1c-cursor`
 - **head id:** `1c-admin-tool`
-- **hub:** `C:/projects/1c-admin-tool/GROUP-HUB.md` · `C:/repo/1c-config-admin-tool/GROUP-HUB.md`
+- **hub:** `C:/projects/1c-admin-tool/GROUP-HUB.md`
+- **shared canon:** `C:/projects/1c-admin-tool/docs/group/shared/` (read directly, no local copy)
 
-## Protocol state
+## Sync state
 
 | Field | Value |
 |-------|-------|
-| protocol_epoch | 0 |
-| protocol_sync_state | stable |
-| stable_at | 2026-07-02T15:33:11Z |
-| protocol_ref | `docs/group/protocol-ref/epoch0/` |
-| open_disputes | 0 |
-| dispute_round | 0 |
+| sync_state | stable |
+| last_event | 20260711T053100Z |
 
-`protocol_sync_state`: `negotiating` | `stable` | `stale`
+Mirrors this Sub's `GROUP-HUB.md` registry row — the hub is the source of truth; this is a local read-cache, not a pinned protocol version.
 
 ## Sync (hub)
 
-State lives in the Head hub (`head.paths` in `group.manifest.yaml`): `C:/projects/1c-admin-tool/GROUP-HUB.md` · `C:/repo/1c-config-admin-tool/GROUP-HUB.md`. This project edits only its own `sub_id` registry row and threads.
+State lives in the Head hub at `C:/projects/1c-admin-tool/GROUP-HUB.md`. This project edits only its own `sub_id` registry row and threads.
 
 Session start: if `docs/todo.md` has `## Hub pending`, run skill **`sync`**.
 
 ## Local deviations
 
 - **Portable MCP runtime:** autonomous; help and tools work without the Hub.
-- **protocol-ref:** `docs/group/protocol-ref/epoch0/` — Head baseline (epoch 0, v1.0.6); Hub/MCP group canon.
 - **Help domain:** HBK import, SQLite, parsers — local specs in `docs/`; not Hub group canon, no dispute.
 
 ## Status
 
 | Area | Status | Note |
 |------|--------|------|
-| Hub / group integration | stable | epoch 0; baseline v1.0.6 in protocol-ref (ack THR-003) |
+| Hub / group integration | stable | Reads `shared/` at head.path directly (canon 2.6.0) |
 | Managed tool registry | — | After protocol stable |
 | Portable MCP runtime | autonomous | Does not depend on Hub for help operation |

@@ -18,18 +18,18 @@ Structured context for AI agents and developers. Root overview: [`../README.md`]
 |----------|---------|
 | [`group/integration.md`](group/integration.md) | Head hub link, protocol state |
 | [`group/OPERATOR-HANDOFF.md`](group/OPERATOR-HANDOFF.md) | Deploy runbook (human-tier) |
-| [`group/protocol-ref/`](group/protocol-ref/) | Fixed Head baseline snapshots |
 | [`canons/`](canons/) | Local WI canon copy |
 | [`normalize-record.md`](normalize-record.md) | Last normalize metadata |
 
-**Subagent and skills (canon 2.5.0):** `.cursor/agents/` — 1 (`doc-librarian`); `.cursor/skills/` — 4 (`normalize-project`, `canon-align`, `maintain-docs`, `sync`).
+Shared group protocol canon: read at Head `docs/group/shared/` via `head.path` in `group.manifest.yaml` — no local copy.
+
+**Subagent and skills (canon 2.6.0):** `.cursor/agents/` — 1 (`doc-librarian`); `.cursor/skills/` — 4 (`normalize-project`, `canon-align`, `maintain-docs`, `sync`).
 
 ### Group-sync CLI
 
 ```powershell
 python scripts/project-doctor.py --repo . --type Sub
 python scripts/sync-status.py --repo .
-python scripts/protocol-snapshot.py --status --repo .
 ```
 
 Hub state: `C:/projects/1c-admin-tool/GROUP-HUB.md` · `C:/repo/1c-config-admin-tool/GROUP-HUB.md`. Processing — skill **`sync`** when `## Hub pending` has items.

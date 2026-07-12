@@ -2,6 +2,10 @@
 
 ---
 
+## 2026-07-12
+
+- **Re-normalize 2.6.0 (Sub):** канон WI 2.6.0 — хаб-модель без `protocol-ref/`, `protocol-snapshot.py` и полей epoch/dispute_round; Sub читает `docs/group/shared/` на Head по `head.path`; agent-cache docs обновлены; layout без изменений (1 agent + 4 skills); состояние протокола (`stable`, `last_event` 20260711T053100Z) без изменений.
+
 ## 2026-07-11
 
 - **Конструктор отчётов: второй архетип «на макете» (`kind=macet`) + починка `kind=skd`.** `report` в `constructor.db` расширен (`kind`, реквизиты/табличные части/форма/макет отчёта); 4 новых MCP tools (`set_report_attributes`, `set_report_tabular_sections`, `set_report_form`, `set_report_template`); `create_report`/`set_report_module_code` — параметры `kind`/`module`. `export_report.py` — вторая ветка экспорта (`Forms/`, `Templates/<макет>/Ext/Template.xml`, `Ext/ObjectModule.bsl`, `Forms/<форма>/Ext/Form/Module.bsl`). Заодно починен реальный блокер в `kind=skd`: `set_report_skd`'s `layout` был жёстко привязан к `build_dcs_table_layout` (только сводная таблица) — обычный сгруппированный список нельзя было построить через MCP вообще; теперь `layout.mode` (`group_with_details`/`pivot_table`/`flat`) диспетчерится в нужный `build_dcs_*_layout`. Плюс `default_standard_period` для параметра `Период`. Оба архетипа подтверждены сквозными сборками через реальные MCP tools (проект Задачник, `ТрудозатратыПоИсполнителям`/`ТрудозатратыПоИсполнителямМакет`) — macet-версия потребовала трёх фиксов на стороне библиотеки `1c-metadata-schema` (см. её CHANGELOG/`docs/group/handoff-layout-report.md`). `constructor.db` дважды пересоздавалась под новую схему (правило `no-db-migrations`). Документация: `docs/group/handoff-layout-report.md` (новый), `handoff-external-report-skd.md` и `docs/mcp-tools.md` обновлены.
