@@ -2,6 +2,7 @@
 import asyncio
 import json
 import sys
+import time
 from pathlib import Path
 from mcp.server import Server
 from mcp.types import Tool, TextContent
@@ -11,6 +12,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from server.tools import HelpTools
 from server.constructor_tools import ConstructorTools
+from shared.security import mask_secrets
+from shared.tool_calls_log import (
+    ToolCallLogger,
+    inject_correlation_properties,
+    tool_calls_db_path,
+    utc_now_iso,
+)
 
 if getattr(sys, "frozen", False):
     application_path = Path(sys.executable).parent
@@ -35,10 +43,13 @@ constructor_db_path = databases_dir / "constructor.db"
 constructor_tools = ConstructorTools(constructor_db_path, tools)
 app = Server("1c-help-server")
 
+# Журнал вызовов инструментов (protocol v1.0.7 §3): <logsDir>/tool-calls.db
+_call_logger = ToolCallLogger(tool_calls_db_path(project_root / "logs"))
+
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:
-    return [
+    return inject_correlation_properties([
         Tool(
             name="get_syntax",
             description="Справка по встроенному языку 1С (BSL): метод, свойство, тип, конструкция, глобальная функция. "
@@ -428,7 +439,7 @@ async def list_tools() -> list[Tool]:
                 "required": ["report", "path"],
             },
         ),
-    ]
+    ])
 
 
 def _format_response(text: str, structured: dict | None = None) -> str:
@@ -460,286 +471,323 @@ def _format_validate_project(result: dict) -> str:
     return _format_response("\n".join(lines), result)
 
 
+async def _dispatch(name: str, arguments: dict) -> list[TextContent]:
+    if name == "get_syntax":
+        result = tools.get_syntax(
+            name=arguments["name"],
+            version=arguments.get("version"),
+        )
+        if result:
+            text = _format_response(
+                result.get("text", ""),
+                result.get("structured"),
+            )
+        else:
+            text = f"Не найдено: {arguments['name']}"
+        return [TextContent(type="text", text=text)]
+
+    if name == "search_syntax":
+        results = tools.search_syntax(
+            query=arguments["query"],
+            version=arguments.get("version"),
+            max_results=arguments.get("max_results", 20),
+        )
+        text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Ничего не найдено"
+        return [TextContent(type="text", text=text)]
+
+    if name == "get_object_api":
+        result = tools.get_object_api(
+            object_name=arguments["object_name"],
+            version=arguments.get("version"),
+        )
+        text = json.dumps(result, ensure_ascii=False, indent=2) if result else f"Объект не найден: {arguments['object_name']}"
+        return [TextContent(type="text", text=text)]
+
+    if name == "list_syntax":
+        results = tools.list_syntax(
+            category=arguments.get("category"),
+            version=arguments.get("version"),
+        )
+        text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Пусто (загрузите справку)"
+        return [TextContent(type="text", text=text)]
+
+    if name == "list_help_versions":
+        versions = tools.list_versions()
+        text = "Доступные версии:\n" + "\n".join(versions) if versions else "Нет загруженных справок"
+        return [TextContent(type="text", text=text)]
+
+    if name == "get_query_syntax":
+        result = tools.get_query_syntax(
+            name=arguments["name"],
+            version=arguments.get("version"),
+        )
+        if result:
+            text = _format_response(
+                result.get("description") or result.get("syntax") or "",
+                result,
+            )
+        else:
+            text = f"Не найдено: {arguments['name']}"
+        return [TextContent(type="text", text=text)]
+
+    if name == "search_query":
+        results = tools.search_query(
+            query=arguments["query"],
+            version=arguments.get("version"),
+            max_results=arguments.get("max_results", 20),
+        )
+        text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Ничего не найдено"
+        return [TextContent(type="text", text=text)]
+
+    if name == "list_query_topics":
+        results = tools.list_query_topics(
+            category=arguments.get("category"),
+            version=arguments.get("version"),
+        )
+        text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Пусто (загрузите shquery_ru)"
+        return [TextContent(type="text", text=text)]
+
+    if name == "validate_code":
+        errors = tools.validate_code(
+            code=arguments["code"],
+            version=arguments.get("version"),
+            max_errors=arguments.get("max_errors", 50),
+        )
+        if not errors:
+            text = "Ошибок не найдено."
+        else:
+            lines = [f"Найдено {len(errors)} предполагаемых ошибок:"]
+            for e in errors:
+                if e.get("kind") == "unknown_object":
+                    lines.append(f"  Строка {e['line']}: {e['object']}.{e['method']}() — {e.get('message', 'объект не найден в справке')}")
+                else:
+                    sug = f" → возможно: {e['suggestion']}" if e.get("suggestion") and "проверьте" not in str(e.get("suggestion", "")) else ""
+                    lines.append(f"  Строка {e['line']}: {e['object']}.{e['method']}() — метод не найден в {e.get('api_object', '')}{sug}")
+            text = "\n".join(lines)
+        return [TextContent(type="text", text=text)]
+
+    if name == "create_processor":
+        result = constructor_tools.create_processor(
+            name=arguments["name"],
+            synonym=arguments["synonym"],
+        )
+        text = _format_response(
+            f"Создана обработка «{result['name']}» ({result['synonym_ru']}).",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "set_attributes":
+        result = constructor_tools.set_attributes(
+            processor=arguments["processor"],
+            attributes=arguments["attributes"],
+        )
+        text = _format_response(
+            f"Реквизиты обработки «{result['name']}» обновлены ({len(result['attributes'])} шт.).",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "set_form":
+        result = constructor_tools.set_form(
+            processor=arguments["processor"],
+            fields=arguments.get("fields"),
+            groups=arguments.get("groups"),
+            commands=arguments.get("commands"),
+            events=arguments.get("events"),
+        )
+        text = _format_response(f"Форма обработки «{result['name']}» обновлена.", result)
+        return [TextContent(type="text", text=text)]
+
+    if name == "set_module_code":
+        result = constructor_tools.set_module_code(
+            processor=arguments["processor"],
+            module=arguments["module"],
+            code=arguments["code"],
+        )
+        text = _format_response(
+            f"Модуль {result['module']} обработки «{result['name']}» сохранён ({result['code_length']} симв.).",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "validate_project":
+        result = constructor_tools.validate_project(
+            processor=arguments["processor"],
+            version=arguments.get("version"),
+        )
+        text = _format_validate_project(result)
+        return [TextContent(type="text", text=text)]
+
+    if name == "export_project":
+        result = constructor_tools.export_project(
+            processor=arguments["processor"],
+            path=arguments["path"],
+        )
+        files = "\n".join(f"  - {f}" for f in result["files"])
+        text = _format_response(
+            f"Экспорт «{result['processor']}»:\n"
+            f"  каталог обработки: {result['processor_dir']}\n"
+            f"  открыть в Конфигураторе: {result['open_in_configurator']}\n"
+            f"Файлы (относительно {result['parent_dir']}):\n{files}",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "create_report":
+        result = constructor_tools.create_report(
+            name=arguments["name"],
+            synonym=arguments["synonym"],
+            kind=arguments.get("kind", "skd"),
+        )
+        text = _format_response(
+            f"Создан отчёт «{result['name']}» ({result['synonym_ru']}), kind={result['kind']}.",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "set_report_attributes":
+        result = constructor_tools.set_report_attributes(
+            report=arguments["report"],
+            attributes=arguments["attributes"],
+        )
+        text = _format_response(
+            f"Реквизиты отчёта «{result['name']}» обновлены ({len(result['attributes'])} шт.).",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "set_report_tabular_sections":
+        result = constructor_tools.set_report_tabular_sections(
+            report=arguments["report"],
+            tabular_sections=arguments["tabular_sections"],
+        )
+        text = _format_response(
+            f"Табличные части отчёта «{result['name']}» обновлены ({len(result['tabular_sections'])} шт.).",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "set_report_form":
+        result = constructor_tools.set_report_form(
+            report=arguments["report"],
+            form_name=arguments.get("form_name"),
+            form_synonym=arguments.get("form_synonym"),
+            fields=arguments.get("fields"),
+            groups=arguments.get("groups"),
+            commands=arguments.get("commands"),
+            events=arguments.get("events"),
+            spreadsheet_fields=arguments.get("spreadsheet_fields"),
+        )
+        text = _format_response(f"Форма «{result['form_name']}» отчёта «{result['name']}» обновлена.", result)
+        return [TextContent(type="text", text=text)]
+
+    if name == "set_report_template":
+        result = constructor_tools.set_report_template(
+            report=arguments["report"],
+            areas=arguments["areas"],
+            template_name=arguments.get("template_name"),
+        )
+        text = _format_response(
+            f"Макет «{result['template_name']}» отчёта «{result['name']}» обновлён ({result['area_count']} областей).",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "set_report_skd":
+        result = constructor_tools.set_report_skd(
+            report=arguments["report"],
+            query=arguments.get("query"),
+            fields=arguments.get("fields"),
+            parameters=arguments.get("parameters"),
+            calculated_fields=arguments.get("calculated_fields"),
+            totals=arguments.get("totals"),
+            layout=arguments.get("layout"),
+        )
+        text = _format_response(
+            f"СКД отчёта «{result['name']}» обновлена "
+            f"({result['field_count']} полей, layout={'да' if result['has_layout'] else 'нет'}).",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "set_report_module_code":
+        result = constructor_tools.set_report_module_code(
+            report=arguments["report"],
+            code=arguments["code"],
+            module=arguments.get("module", "ObjectModule"),
+        )
+        text = _format_response(
+            f"{result['module']} отчёта «{result['name']}» сохранён ({result['code_length']} симв.).",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    if name == "validate_report":
+        result = constructor_tools.validate_report(
+            report=arguments["report"],
+            version=arguments.get("version"),
+        )
+        text = _format_validate_project(result)
+        return [TextContent(type="text", text=text)]
+
+    if name == "export_report":
+        result = constructor_tools.export_report(
+            report=arguments["report"],
+            path=arguments["path"],
+        )
+        files = "\n".join(f"  - {f}" for f in result["files"])
+        text = _format_response(
+            f"Экспорт отчёта «{result['report']}»:\n"
+            f"  каталог: {result['report_dir']}\n"
+            f"  открыть в Конфигураторе: {result['open_in_configurator']}\n"
+            f"Файлы (относительно {result['parent_dir']}):\n{files}",
+            result,
+        )
+        return [TextContent(type="text", text=text)]
+
+    return [TextContent(type="text", text=f"Неизвестный инструмент: {name}")]
+
+
+def _response_bytes(response: list[TextContent] | None) -> int | None:
+    """Serialized response size for the journal (sum of TextContent utf-8 bytes)."""
+    if not response:
+        return None
+    total = 0
+    for item in response:
+        text = getattr(item, "text", None)
+        if text:
+            total += len(text.encode("utf-8"))
+    return total or None
+
+
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+    args = arguments or {}
+    started_at = utc_now_iso()
+    started_mono = time.monotonic()
+    success = True
+    error_code = None
+    response: list[TextContent] | None = None
+
     try:
-        if name == "get_syntax":
-            result = tools.get_syntax(
-                name=arguments["name"],
-                version=arguments.get("version"),
-            )
-            if result:
-                text = _format_response(
-                    result.get("text", ""),
-                    result.get("structured"),
-                )
-            else:
-                text = f"Не найдено: {arguments['name']}"
-            return [TextContent(type="text", text=text)]
-
-        if name == "search_syntax":
-            results = tools.search_syntax(
-                query=arguments["query"],
-                version=arguments.get("version"),
-                max_results=arguments.get("max_results", 20),
-            )
-            text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Ничего не найдено"
-            return [TextContent(type="text", text=text)]
-
-        if name == "get_object_api":
-            result = tools.get_object_api(
-                object_name=arguments["object_name"],
-                version=arguments.get("version"),
-            )
-            text = json.dumps(result, ensure_ascii=False, indent=2) if result else f"Объект не найден: {arguments['object_name']}"
-            return [TextContent(type="text", text=text)]
-
-        if name == "list_syntax":
-            results = tools.list_syntax(
-                category=arguments.get("category"),
-                version=arguments.get("version"),
-            )
-            text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Пусто (загрузите справку)"
-            return [TextContent(type="text", text=text)]
-
-        if name == "list_help_versions":
-            versions = tools.list_versions()
-            text = "Доступные версии:\n" + "\n".join(versions) if versions else "Нет загруженных справок"
-            return [TextContent(type="text", text=text)]
-
-        if name == "get_query_syntax":
-            result = tools.get_query_syntax(
-                name=arguments["name"],
-                version=arguments.get("version"),
-            )
-            if result:
-                text = _format_response(
-                    result.get("description") or result.get("syntax") or "",
-                    result,
-                )
-            else:
-                text = f"Не найдено: {arguments['name']}"
-            return [TextContent(type="text", text=text)]
-
-        if name == "search_query":
-            results = tools.search_query(
-                query=arguments["query"],
-                version=arguments.get("version"),
-                max_results=arguments.get("max_results", 20),
-            )
-            text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Ничего не найдено"
-            return [TextContent(type="text", text=text)]
-
-        if name == "list_query_topics":
-            results = tools.list_query_topics(
-                category=arguments.get("category"),
-                version=arguments.get("version"),
-            )
-            text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Пусто (загрузите shquery_ru)"
-            return [TextContent(type="text", text=text)]
-
-        if name == "validate_code":
-            errors = tools.validate_code(
-                code=arguments["code"],
-                version=arguments.get("version"),
-                max_errors=arguments.get("max_errors", 50),
-            )
-            if not errors:
-                text = "Ошибок не найдено."
-            else:
-                lines = [f"Найдено {len(errors)} предполагаемых ошибок:"]
-                for e in errors:
-                    if e.get("kind") == "unknown_object":
-                        lines.append(f"  Строка {e['line']}: {e['object']}.{e['method']}() — {e.get('message', 'объект не найден в справке')}")
-                    else:
-                        sug = f" → возможно: {e['suggestion']}" if e.get("suggestion") and "проверьте" not in str(e.get("suggestion", "")) else ""
-                        lines.append(f"  Строка {e['line']}: {e['object']}.{e['method']}() — метод не найден в {e.get('api_object', '')}{sug}")
-                text = "\n".join(lines)
-            return [TextContent(type="text", text=text)]
-
-        if name == "create_processor":
-            result = constructor_tools.create_processor(
-                name=arguments["name"],
-                synonym=arguments["synonym"],
-            )
-            text = _format_response(
-                f"Создана обработка «{result['name']}» ({result['synonym_ru']}).",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "set_attributes":
-            result = constructor_tools.set_attributes(
-                processor=arguments["processor"],
-                attributes=arguments["attributes"],
-            )
-            text = _format_response(
-                f"Реквизиты обработки «{result['name']}» обновлены ({len(result['attributes'])} шт.).",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "set_form":
-            result = constructor_tools.set_form(
-                processor=arguments["processor"],
-                fields=arguments.get("fields"),
-                groups=arguments.get("groups"),
-                commands=arguments.get("commands"),
-                events=arguments.get("events"),
-            )
-            text = _format_response(f"Форма обработки «{result['name']}» обновлена.", result)
-            return [TextContent(type="text", text=text)]
-
-        if name == "set_module_code":
-            result = constructor_tools.set_module_code(
-                processor=arguments["processor"],
-                module=arguments["module"],
-                code=arguments["code"],
-            )
-            text = _format_response(
-                f"Модуль {result['module']} обработки «{result['name']}» сохранён ({result['code_length']} симв.).",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "validate_project":
-            result = constructor_tools.validate_project(
-                processor=arguments["processor"],
-                version=arguments.get("version"),
-            )
-            text = _format_validate_project(result)
-            return [TextContent(type="text", text=text)]
-
-        if name == "export_project":
-            result = constructor_tools.export_project(
-                processor=arguments["processor"],
-                path=arguments["path"],
-            )
-            files = "\n".join(f"  - {f}" for f in result["files"])
-            text = _format_response(
-                f"Экспорт «{result['processor']}»:\n"
-                f"  каталог обработки: {result['processor_dir']}\n"
-                f"  открыть в Конфигураторе: {result['open_in_configurator']}\n"
-                f"Файлы (относительно {result['parent_dir']}):\n{files}",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "create_report":
-            result = constructor_tools.create_report(
-                name=arguments["name"],
-                synonym=arguments["synonym"],
-                kind=arguments.get("kind", "skd"),
-            )
-            text = _format_response(
-                f"Создан отчёт «{result['name']}» ({result['synonym_ru']}), kind={result['kind']}.",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "set_report_attributes":
-            result = constructor_tools.set_report_attributes(
-                report=arguments["report"],
-                attributes=arguments["attributes"],
-            )
-            text = _format_response(
-                f"Реквизиты отчёта «{result['name']}» обновлены ({len(result['attributes'])} шт.).",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "set_report_tabular_sections":
-            result = constructor_tools.set_report_tabular_sections(
-                report=arguments["report"],
-                tabular_sections=arguments["tabular_sections"],
-            )
-            text = _format_response(
-                f"Табличные части отчёта «{result['name']}» обновлены ({len(result['tabular_sections'])} шт.).",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "set_report_form":
-            result = constructor_tools.set_report_form(
-                report=arguments["report"],
-                form_name=arguments.get("form_name"),
-                form_synonym=arguments.get("form_synonym"),
-                fields=arguments.get("fields"),
-                groups=arguments.get("groups"),
-                commands=arguments.get("commands"),
-                events=arguments.get("events"),
-                spreadsheet_fields=arguments.get("spreadsheet_fields"),
-            )
-            text = _format_response(f"Форма «{result['form_name']}» отчёта «{result['name']}» обновлена.", result)
-            return [TextContent(type="text", text=text)]
-
-        if name == "set_report_template":
-            result = constructor_tools.set_report_template(
-                report=arguments["report"],
-                areas=arguments["areas"],
-                template_name=arguments.get("template_name"),
-            )
-            text = _format_response(
-                f"Макет «{result['template_name']}» отчёта «{result['name']}» обновлён ({result['area_count']} областей).",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "set_report_skd":
-            result = constructor_tools.set_report_skd(
-                report=arguments["report"],
-                query=arguments.get("query"),
-                fields=arguments.get("fields"),
-                parameters=arguments.get("parameters"),
-                calculated_fields=arguments.get("calculated_fields"),
-                totals=arguments.get("totals"),
-                layout=arguments.get("layout"),
-            )
-            text = _format_response(
-                f"СКД отчёта «{result['name']}» обновлена "
-                f"({result['field_count']} полей, layout={'да' if result['has_layout'] else 'нет'}).",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "set_report_module_code":
-            result = constructor_tools.set_report_module_code(
-                report=arguments["report"],
-                code=arguments["code"],
-                module=arguments.get("module", "ObjectModule"),
-            )
-            text = _format_response(
-                f"{result['module']} отчёта «{result['name']}» сохранён ({result['code_length']} симв.).",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        if name == "validate_report":
-            result = constructor_tools.validate_report(
-                report=arguments["report"],
-                version=arguments.get("version"),
-            )
-            text = _format_validate_project(result)
-            return [TextContent(type="text", text=text)]
-
-        if name == "export_report":
-            result = constructor_tools.export_report(
-                report=arguments["report"],
-                path=arguments["path"],
-            )
-            files = "\n".join(f"  - {f}" for f in result["files"])
-            text = _format_response(
-                f"Экспорт отчёта «{result['report']}»:\n"
-                f"  каталог: {result['report_dir']}\n"
-                f"  открыть в Конфигураторе: {result['open_in_configurator']}\n"
-                f"Файлы (относительно {result['parent_dir']}):\n{files}",
-                result,
-            )
-            return [TextContent(type="text", text=text)]
-
-        return [TextContent(type="text", text=f"Неизвестный инструмент: {name}")]
+        response = await _dispatch(name, args)
+        return response
     except Exception as e:
-        return [TextContent(type="text", text=f"Ошибка: {e}")]
+        success = False
+        error_code = type(e).__name__
+        response = [TextContent(type="text", text=f"Ошибка: {mask_secrets(str(e))}")]
+        return response
+    finally:
+        _call_logger.log(
+            tool=name,
+            started_at=started_at,
+            started_mono=started_mono,
+            args=args,
+            success=success,
+            error_code=error_code,
+            result_bytes=_response_bytes(response),
+        )
 
 
 async def main():

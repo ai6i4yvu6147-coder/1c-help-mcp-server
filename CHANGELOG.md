@@ -2,6 +2,10 @@
 
 ---
 
+## 2026-07-16
+
+- **Журнал вызовов инструментов `logs/tool-calls.db` + опциональная корреляция `task_id`/`agent`/`model` (protocol v1.0.7 §3, кластерно-единообразно):** каждый вызов MCP-инструмента пишет одну строку в SQLite `logs/tool-calls.db` (schema `tool_calls` из аддендума: `ts_utc`, `tool`, `task_id`, `agent`, `model`, `elapsed_ms`, `result_bytes`, `success`, `error_code`, `args_summary`, `pid`). Диспетчер `call_tool` разбит на чистый `_dispatch` (бросает исключения) и обёртку с таймингом + журналированием в `finally` — **failure-isolated** (ошибки записи глотаются, результат инструмента не меняется). Централизованная обработка ошибок в обёртке (текст «Ошибка: …» теперь проходит `mask_secrets`) вместо прежнего `try/except` вокруг всей цепочки. Все инструменты advertise опциональную тройку `task_id`/`agent`/`model` (никогда не в `required`) через общий `shared/tool_calls_log.py::CORRELATION_INPUT_PROPERTIES`; серверо-специфичный скоуп (`version`/…) — внутри маскированного и обрезанного до 2 КБ `args_summary`, ключ `password` редактируется. Новые `shared/security.py` (`mask_secrets`) и `shared/tool_calls_log.py` идентичны копиям в `1c-data-mcp`/`1c-config-mcp` (отличие — путь импорта `mask_secrets`). Тесты: `tests/test_tool_calls_log.py` (в репозитории нет pytest — набор добавлен для единообразия; логика проверена standalone-скриптом + смоук-тестом сервера: все 24 инструмента отдают тройку, error-path журналируется).
+
 ## 2026-07-12
 
 - **Re-normalize 2.6.0 (Sub):** канон WI 2.6.0 — хаб-модель без `protocol-ref/`, `protocol-snapshot.py` и полей epoch/dispute_round; Sub читает `docs/group/shared/` на Head по `head.path`; agent-cache docs обновлены; layout без изменений (1 agent + 4 skills); состояние протокола (`stable`, `last_event` 20260711T053100Z) без изменений.
