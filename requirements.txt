@@ -3,4 +3,6 @@ beautifulsoup4==4.14.3
 lxml==6.0.2
 pyinstaller==6.19.0
 pyyaml>=6.0
--e C:/projects/1c-metadata-schema
+# onec_metadata_schema: editable install from first existing path (see build_all.bat)
+#   C:\repo\1c-metadata-schema
+#   C:\projects\1c-metadata-schema

@@ -2,6 +2,29 @@
 echo Building 1C Help MCP Server...
 
 call venv\Scripts\activate.bat
+if errorlevel 1 (
+    echo ERROR: venv not found. Create it and run: pip install -r requirements.txt
+    exit /b 1
+)
+
+echo.
+echo Resolving 1c-metadata-schema...
+set "METADATA_SCHEMA="
+if exist "C:\repo\1c-metadata-schema\pyproject.toml" set "METADATA_SCHEMA=C:\repo\1c-metadata-schema"
+if not defined METADATA_SCHEMA if exist "C:\projects\1c-metadata-schema\pyproject.toml" set "METADATA_SCHEMA=C:\projects\1c-metadata-schema"
+if not defined METADATA_SCHEMA (
+    echo ERROR: 1c-metadata-schema not found. Checked:
+    echo   C:\repo\1c-metadata-schema
+    echo   C:\projects\1c-metadata-schema
+    exit /b 1
+)
+echo Using: %METADATA_SCHEMA%
+pip install -e "%METADATA_SCHEMA%"
+if errorlevel 1 (
+    echo ERROR: pip install -e failed for %METADATA_SCHEMA%
+    exit /b 1
+)
+
 echo.
 echo [1/2] Building Admin Tool...
 pyinstaller --onedir --windowed --name "1C-Help-Admin" --noconfirm ^
