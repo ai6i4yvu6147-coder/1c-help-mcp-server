@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "moduleType": "help-mcp",
+  "moduleName": "1C Help MCP",
+  "moduleId": "1c-help-mcp",
+  "moduleVersion": "1.0.0",
+  "mode": "standalone",
+  "runtime": {
+    "kind": "python-exe",
+    "entryExe": "Server/1c-help-server.exe",
+    "adminExe": "Admin/1C-Help-Admin.exe",
+    "cliExe": "Tools/1c-help-cli.exe"
+  },
+  "paths": {
+    "root": ".",
+    "logsDir": "logs"
+  },
+  "capabilities": {
+    "inventory": false,
+    "status": false,
+    "toolCallJournal": true
+  },
+  "cliContract": {
+    "jsonEncoding": "utf-8",
+    "jsonBom": false
+  }
+}

@@ -26,7 +26,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [1/2] Building Admin Tool...
+echo [1/3] Building Admin Tool...
 pyinstaller --onedir --windowed --name "1C-Help-Admin" --noconfirm ^
     --hidden-import=sqlite3 ^
     --hidden-import=json ^
@@ -35,7 +35,7 @@ pyinstaller --onedir --windowed --name "1C-Help-Admin" --noconfirm ^
     admin_tool/gui.py
 
 echo.
-echo [2/2] Building MCP Server...
+echo [2/3] Building MCP Server...
 pyinstaller --onedir --name "1c-help-server" --noconfirm ^
     --hidden-import=sqlite3 ^
     --hidden-import=json ^
@@ -48,17 +48,33 @@ pyinstaller --onedir --name "1c-help-server" --noconfirm ^
     server/server.py
 
 echo.
+echo [3/3] Building Admin Hub CLI...
+pyinstaller --onefile --name "1c-help-cli" --noconfirm ^
+    --hidden-import=sqlite3 ^
+    --hidden-import=json ^
+    --add-data "shared;shared" ^
+    admin_tool/cli.py
+
+echo.
 echo Creating 1c_help_mcp_server_Portable in parent folder...
 set "PORTABLE=%~dp0..\1c_help_mcp_server_Portable"
 if exist "%PORTABLE%" rmdir /s /q "%PORTABLE%"
 mkdir "%PORTABLE%"
 mkdir "%PORTABLE%\databases"
+mkdir "%PORTABLE%\Tools"
+mkdir "%PORTABLE%\logs"
 
 echo Copying Admin...
 xcopy /E /I /Y dist\1C-Help-Admin "%PORTABLE%\Admin"
 
 echo Copying Server...
 xcopy /E /I /Y dist\1c-help-server "%PORTABLE%\Server"
+
+echo Copying Admin Hub CLI...
+copy /Y dist\1c-help-cli.exe "%PORTABLE%\Tools\1c-help-cli.exe"
+
+echo Copying module manifest...
+copy /Y module.manifest.example.json "%PORTABLE%\module.manifest.json"
 
 echo Creating launchers...
 echo @echo off > "%PORTABLE%\Admin.bat"
