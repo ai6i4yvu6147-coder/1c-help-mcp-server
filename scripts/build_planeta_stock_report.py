@@ -17,7 +17,7 @@ def main() -> int:
     ct = ConstructorTools(db_dir / "constructor.db", HelpTools(str(db_dir)))
 
     try:
-        ct.create_report(REPORT, "Остатки товаров по складам (Планета)")
+        ct.create("report", REPORT, "Остатки товаров по складам (Планета)")
     except ValueError as exc:
         if "уже существует" not in str(exc):
             raise
@@ -31,7 +31,7 @@ def main() -> int:
         "    РегистрНакопления.ТоварыНаСкладах.Остатки(, ) КАК Остатки",
     ])
 
-    ct.set_report_skd(
+    ct.set_dcs(
         REPORT,
         query=query,
         fields=[
@@ -66,13 +66,13 @@ def main() -> int:
 
 КонецФункции"""
 
-    ct.set_report_module_code(REPORT, module)
-    validation = ct.validate_report(REPORT)
+    ct.set_module(REPORT, "ObjectModule", module)
+    validation = ct.validate(REPORT)
     if not validation["ok"]:
         print("validate failed:", validation)
         return 1
 
-    result = ct.export_report(REPORT, str(OUTPUT))
+    result = ct.export(REPORT, str(OUTPUT))
     print("OK:", result["open_in_configurator"])
     return 0
 

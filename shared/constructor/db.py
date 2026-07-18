@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS report (
     schema_name TEXT NOT NULL DEFAULT 'ОсновнаяСхемаКомпоновкиДанных',
     query_text TEXT NOT NULL DEFAULT '',
     fields_json TEXT NOT NULL DEFAULT '[]',
+    datasets_json TEXT NOT NULL DEFAULT '[]',
+    dataset_links_json TEXT NOT NULL DEFAULT '[]',
     parameters_json TEXT NOT NULL DEFAULT '[]',
     calculated_json TEXT NOT NULL DEFAULT '[]',
     totals_json TEXT NOT NULL DEFAULT '[]',
@@ -75,6 +77,22 @@ def validate_identifier(name: str) -> str | None:
     return None
 
 
+# Columns added to `report` after the initial schema shipped. `CREATE TABLE IF NOT EXISTS`
+# never alters an existing table, so add them on open for DBs created before they existed.
+_REPORT_ADDED_COLUMNS = {
+    "datasets_json": "TEXT NOT NULL DEFAULT '[]'",
+    "dataset_links_json": "TEXT NOT NULL DEFAULT '[]'",
+}
+
+
+def _ensure_report_columns(conn: sqlite3.Connection) -> None:
+    existing = {r["name"] for r in conn.execute("PRAGMA table_info(report)")}
+    for column, decl in _REPORT_ADDED_COLUMNS.items():
+        if column not in existing:
+            conn.execute(f"ALTER TABLE report ADD COLUMN {column} {decl}")
+    conn.commit()
+
+
 def open_db(db_path: Path) -> sqlite3.Connection:
     """Open or create constructor.db with schema."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -83,6 +101,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA_SQL)
     conn.commit()
+    _ensure_report_columns(conn)
     return conn
 
 
@@ -107,6 +126,8 @@ def _report_row_to_dict(row: sqlite3.Row) -> dict:
     d = dict(row)
     for key in (
         "fields_json",
+        "datasets_json",
+        "dataset_links_json",
         "parameters_json",
         "calculated_json",
         "totals_json",
@@ -275,6 +296,8 @@ def set_report_skd(
     *,
     query: str | None = None,
     fields: list | None = None,
+    datasets: list | None = None,
+    dataset_links: list | None = None,
     parameters: list | None = None,
     calculated_fields: list | None = None,
     totals: list | None = None,
@@ -293,6 +316,19 @@ def set_report_skd(
                 raise ValueError("поле набора данных: data_path обязателен")
         updates.append("fields_json = ?")
         values.append(json.dumps(fields, ensure_ascii=False))
+    if datasets is not None:
+        for ds in datasets:
+            err = validate_identifier(ds.get("name", ""))
+            if err:
+                raise ValueError(f"набор данных: {err}")
+            for field in ds.get("fields") or []:
+                if not field.get("data_path"):
+                    raise ValueError(f"набор «{ds.get('name')}»: поле без data_path")
+        updates.append("datasets_json = ?")
+        values.append(json.dumps(datasets, ensure_ascii=False))
+    if dataset_links is not None:
+        updates.append("dataset_links_json = ?")
+        values.append(json.dumps(dataset_links, ensure_ascii=False))
     if parameters is not None:
         updates.append("parameters_json = ?")
         values.append(json.dumps(parameters, ensure_ascii=False))

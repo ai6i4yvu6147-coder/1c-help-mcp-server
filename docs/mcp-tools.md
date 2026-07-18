@@ -19,22 +19,15 @@
 | `search_query` | Полнотекстовый поиск только по языку запросов |
 | `list_query_topics` | Список тем запросов: `keyword`, `function`, `statement`, `operator`, `literal`, `article` |
 | `validate_code` | Эвристика: вызовы `.Метод()`, которых нет в API объекта |
-| `describe` | Reflection-справка конструктора: `unit` (`dcs`) + `name` (раздел, напр. `filter`/`selection`); без `name` — обзор. Поля/enum/пример для сборки payload. Не путать со справкой BSL |
-| `create_processor` | Конструктор: создать проект внешней обработки |
-| `set_attributes` | Конструктор: объектные реквизиты `[{name, type_raw, qualifiers?}]` |
-| `set_form` | Конструктор: форма (fields, groups, commands, events: [{event, handler}]) |
-| `set_module_code` | Конструктор: текст модуля (`ObjectModule` или `FormModule`) |
-| `validate_project` | Конструктор: XML + BSL + обработчики команд/событий |
-| `export_project` | Конструктор: экспорт; `path` = родительский каталог, обработка → `path/<Name>/` |
-| `create_report` | Конструктор: создать проект отчёта; `kind=skd` (по умолчанию) или `kind=macet` |
-| `set_report_skd` | Конструктор (`kind=skd`): запрос, поля, параметры, итоги, `layout` (архетип по `layout.mode`) |
-| `set_report_attributes` | Конструктор (`kind=macet`): объектные реквизиты вместо параметров СКД |
-| `set_report_tabular_sections` | Конструктор (`kind=macet`): табличные части (многострочные параметры) |
-| `set_report_form` | Конструктор (`kind=macet`): своя форма (fields, groups, commands, events, `spreadsheet_fields`) |
-| `set_report_template` | Конструктор (`kind=macet`): табличный макет — именованные области строк |
-| `set_report_module_code` | Конструктор: текст модуля отчёта (`ObjectModule` по умолчанию; `FormModule` для `kind=macet`) |
-| `validate_report` | Конструктор: XML (СКД или макет) + BSL |
-| `export_report` | Конструктор: экспорт; `path` = родительский каталог, отчёт → `path/<Name>/` |
+| `describe` | Reflection-справка конструктора: `unit` (`dcs`) + `name` (раздел, напр. `filter`/`selection`/`order`); без `name` — обзор. Поля/enum/пример для сборки payload. Не путать со справкой BSL |
+| `create` | Конструктор: создать проект. `kind`: `processor`/`report`; `archetype` (report): `skd`/`macet` |
+| `set_object` | Конструктор: объектная оболочка — реквизиты `[{name, type_raw, qualifiers?}]` и (отчёт) табличные части |
+| `set_form` | Конструктор: форма (fields, groups, commands, events: [{event, handler}]; отчёт: form_name/spreadsheet_fields) |
+| `set_dcs` | Конструктор: схема СКД — запрос, поля, параметры, итоги, `layout` (архетип по `layout.mode`) |
+| `set_template` | Конструктор: табличный макет (MXL) — именованные области строк |
+| `set_module` | Конструктор: текст модуля (`ObjectModule` или `FormModule`) |
+| `validate` | Конструктор: XML + BSL + обработчики команд/событий |
+| `export` | Конструктор: экспорт; `path` = родительский каталог, проект → `path/<Name>/` |
 
 ### Когда что использовать
 
@@ -52,22 +45,44 @@
 - `list_query_topics(category="function")`
 - `validate_code(code="Справочники.Х.Создать();")`
 
-> **Планируется пересмотр таксономии конструктора** (15 tools → ~7 + reflection-справка,
-> группировка по «единице редактирования», `kind` как параметр). Дизайн —
-> [`write-tools-taxonomy.md`](write-tools-taxonomy.md). Ниже — текущий контракт.
+### Конструктор: унифицированная поверхность
+
+Группировка по «единице редактирования» (дизайн — [`write-tools-taxonomy.md`](write-tools-taxonomy.md)).
+`project` — единый хэндл (имя ищется в обеих таблицах `processor`/`report`, `kind`
+определяется автоматически). Один вызов `set_*` = **полная замена** этой единицы (билдер
+stateless). Payload полей СКД (отбор/выборка/порядок) — через `describe(unit='dcs')`.
+
+| Tool | Единица | Сигнатура |
+|---|---|---|
+| `create` | lifecycle | `create(kind, name, synonym, archetype?)` — `kind`: `processor`/`report`; `archetype` (report): `skd`/`macet` |
+| `set_object` | объектная оболочка | `set_object(project, attributes?, tabular_sections?)` |
+| `set_form` | форма | `set_form(project, fields?, groups?, commands?, events?, form_name?, form_synonym?, spreadsheet_fields?)` |
+| `set_dcs` | схема СКД | `set_dcs(project, query?, fields?, parameters?, calculated_fields?, totals?, layout?)` — крепится и к Catalog/Document (Stage G) |
+| `set_template` | макет MXL | `set_template(project, areas, template_name?)` |
+| `set_module` | код | `set_module(project, module, code)` |
+| `validate` | lifecycle | `validate(project, version?)` |
+| `export` | lifecycle | `export(project, path)` |
+
+**Инвариант:** число write-tools не зависит от числа видов объектов/типов элементов —
+новое = данные (значение `kind`, запись в `describe`), не новый tool.
+
+Отложено: свести дубли `shared/constructor/` (`export.py`+`export_report.py`,
+`validate.py`+`validate_report.py`) в один модуль с ветвлением по `kind`; мульти-набор в
+`set_dcs` (`datasets`/`dataset_links` — сейчас один запрос+поля); `set_dcs`-дефолты
+(базовый реквизит → отбор+`QuickAccess`, период → параметр-трио).
 
 ### Конструктор метаданных (внешние обработки)
 
 Последовательность для `TestPoryadkaDemo`:
 
-1. `create_processor(name="TestPoryadkaDemo", synonym="Тест порядка UI (demo)")`
-2. `set_attributes(processor="TestPoryadkaDemo", attributes=[{"name":"Орг","type_raw":"cfg:CatalogRef.Организации"},{"name":"ФИО","type_raw":"xs:string","qualifiers":{"length":10,"allowed_length":"Variable"}}])`
-3. `set_form(processor="TestPoryadkaDemo", fields=[...], events=[{"event":"OnOpen","handler":"ПриОткрытии"}])` — events экспортируются в Form.xml
-4. `set_module_code(processor="TestPoryadkaDemo", module="FormModule", code="")` — опционально
-5. `validate_project(processor="TestPoryadkaDemo")`
-6. `export_project(processor="TestPoryadkaDemo", path="C:/temp/export")` → открыть `C:/temp/export/TestPoryadkaDemo/TestPoryadkaDemo.xml`
+1. `create(kind="processor", name="TestPoryadkaDemo", synonym="Тест порядка UI (demo)")`
+2. `set_object(project="TestPoryadkaDemo", attributes=[{"name":"Орг","type_raw":"cfg:CatalogRef.Организации"},{"name":"ФИО","type_raw":"xs:string","qualifiers":{"length":10,"allowed_length":"Variable"}}])`
+3. `set_form(project="TestPoryadkaDemo", fields=[...], events=[{"event":"OnOpen","handler":"ПриОткрытии"}])` — events экспортируются в Form.xml
+4. `set_module(project="TestPoryadkaDemo", module="FormModule", code="")` — опционально
+5. `validate(project="TestPoryadkaDemo")`
+6. `export(project="TestPoryadkaDemo", path="C:/temp/export")` → открыть `C:/temp/export/TestPoryadkaDemo/TestPoryadkaDemo.xml`
 
-#### Каталог экспорта (`export_project.path`)
+#### Каталог экспорта (`export.path`)
 
 `path` — **родительский каталог**, куда складываются обработки. Каждая обработка получает **свою подпапку** с именем обработки. Несколько обработок в одном `path` не смешиваются.
 
@@ -92,33 +107,34 @@ Configurator ищет формы по `<каталог_xml>/<Имя>/Forms/...`.
 
 ### Конструктор отчётов (внешние отчёты)
 
-Два архетипа, выбираются через `create_report(kind=...)`. Подробности и уроки первых реальных сборок — `docs/group/handoff-external-report-skd.md` (СКД) и `docs/group/handoff-layout-report.md` (макет).
+Два архетипа, выбираются через `create(kind="report", archetype=...)`. Подробности и уроки первых реальных сборок — `docs/group/handoff-external-report-skd.md` (СКД) и `docs/group/handoff-layout-report.md` (макет).
 
-#### `kind=skd` — на схеме компоновки данных
+#### `archetype=skd` — на схеме компоновки данных
 
 Для отчётов с группировкой/сводом по запросу без своей формы.
 
-1. `create_report(name="ТрудозатратыПоИсполнителям", synonym="Трудозатраты по исполнителям")` — `kind` по умолчанию `skd`
-2. `set_report_skd(report=..., query=..., fields=[...], parameters=[...период-трио...], totals=[{"data_path":"Часы","expression":"Сумма(Часы)"}], layout={"group_by":[{"field":"Исполнитель"},{"field":"Задача"}], "selection":[...]})`
+1. `create(kind="report", name="ТрудозатратыПоИсполнителям", synonym="Трудозатраты по исполнителям")` — `archetype` по умолчанию `skd`
+2. `set_dcs(project=..., query=..., fields=[...], standard_period=true, totals=[{"data_path":"Часы","expression":"Сумма(Часы)"}], layout={"group_by":[{"field":"Исполнитель"},{"field":"Задача"}], "selection":[...]})`
    - `layout.mode`: `group_with_details` (список с группировкой + подытоги на каждом уровне — несколько полей в `group_by` дают вложенные уровни, не один составной ключ), `pivot_table` (нужны и `rows`, и `columns`), `flat`. Без `mode` архетип определяется по форме объекта.
-   - Канонический период: параметр `Период` (`v8:StandardPeriod`, `use:"Always"`, `default_standard_period:true`) + `НачалоПериода`/`КонецПериода` (`xs:dateTime`, `use_restriction:true`, `expression:"&Период.ДатаНачала"`/`"&Период.ДатаОкончания"`); в тексте запроса — `&НачалоПериода`/`&КонецПериода`, не `&Период.ДатаНачала` напрямую.
-3. `set_report_module_code(report=..., code="...")` — `ObjectModule`, `СведенияОВнешнейОбработке()`
-4. `validate_report(report=...)`
-5. `export_report(report=..., path=...)`
+   - Отбор/выборка/порядок — в `layout` (`filter_items`/`selection`/`order_items`); контракт полей — `describe(unit='dcs')`. Основные отборы выносите в польз. настройки: `filter_items=[{"field":"Организация","comparison":"Equal","view_mode":"QuickAccess","generate_user_setting_id":true}]`.
+   - **Несколько наборов данных:** вместо `query`/`fields` передайте `datasets=[{name, query, fields, data_source?}]` + `dataset_links=[{source_dataset, destination_dataset, source_expression, destination_expression, required?}]` (взаимоисключимо с `query`/`fields`). Guidance: предпочитайте один набор с `ЛЕВОЕ СОЕДИНЕНИЕ`; связь наборов — крайний случай (регистр+остатки).
+   - **Канонический период:** проще всего `standard_period=true` — добавит трио `Период` (`v8:StandardPeriod`, `use:"Always"`) + `НачалоПериода`/`КонецПериода` (`xs:dateTime`, `use_restriction:true`, `expression:"&Период.ДатаНачала"`/`"&Период.ДатаОкончания"`) в параметры; в тексте запроса ссылайтесь на `&НачалоПериода`/`&КонецПериода`, не на `&Период.ДатаНачала` напрямую. Либо задайте эти параметры вручную через `parameters=[...]`.
+3. `set_module(project=..., module="ObjectModule", code="...")` — `СведенияОВнешнейОбработке()`
+4. `validate(project=...)`
+5. `export(project=..., path=...)`
 
-#### `kind=macet` — на табличном макете
+#### `archetype=macet` — на табличном макете
 
 Для отчётов со своей формой и напечатанным макетом (нет DCS вообще).
 
-1. `create_report(name=..., synonym=..., kind="macet")`
-2. `set_report_attributes(report=..., attributes=[{"name":"НачалоПериода","type_raw":"xs:dateTime","qualifiers":{"date_fractions":"Date"}}, ...])` — вместо параметров СКД
-3. `set_report_tabular_sections(report=..., tabular_sections=[...])` — опционально, для многострочных параметров (список организаций и т.п.)
-4. `set_report_form(report=..., form_name="ФормаОтчета", fields=[...], commands=[{"name":"Сформировать"}], spreadsheet_fields=[{"name":"ТабДок"}], events=[...])` — **`spreadsheet_fields` обязателен**: без него результату негде отобразиться (обычное `fields`-поле для `ТабличныйДокумент` не подходит)
-5. `set_report_template(report=..., areas=[{"name":"Шапка","rows":[[{"col":0,"text":"...","bold":true}]]}, ...])` — именованные области; группировки/отступы — не в макете, а в BSL (`Область.Уровень`, `НачатьАвтогруппировкуСтрок`)
-6. `set_report_module_code(report=..., module="ObjectModule", code="...")` — данные + заливка макета; экспортировать **функцию**, возвращающую `ТабличныйДокумент` (см. ниже)
-7. `set_report_module_code(report=..., module="FormModule", code="...")` — вызов команды «Сформировать»
-8. `validate_report(report=...)`
-9. `export_report(report=..., path=...)`
+1. `create(kind="report", name=..., synonym=..., archetype="macet")`
+2. `set_object(project=..., attributes=[{"name":"НачалоПериода","type_raw":"xs:dateTime","qualifiers":{"date_fractions":"Date"}}, ...])` — реквизиты вместо параметров СКД; для многострочных параметров (список организаций и т.п.) добавьте `tabular_sections=[...]` тем же вызовом
+3. `set_form(project=..., form_name="ФормаОтчета", fields=[...], commands=[{"name":"Сформировать"}], spreadsheet_fields=[{"name":"ТабДок"}], events=[...])` — **`spreadsheet_fields` обязателен**: без него результату негде отобразиться (обычное `fields`-поле для `ТабличныйДокумент` не подходит)
+4. `set_template(project=..., areas=[{"name":"Шапка","rows":[[{"col":0,"text":"...","bold":true}]]}, ...])` — именованные области; группировки/отступы — не в макете, а в BSL (`Область.Уровень`, `НачатьАвтогруппировкуСтрок`)
+5. `set_module(project=..., module="ObjectModule", code="...")` — данные + заливка макета; экспортировать **функцию**, возвращающую `ТабличныйДокумент` (см. ниже)
+6. `set_module(project=..., module="FormModule", code="...")` — вызов команды «Сформировать»
+7. `validate(project=...)`
+8. `export(project=..., path=...)`
 
 **BSL-паттерн (важно):** `Перем ТабДок Экспорт` на `ObjectModule` + чтение `Объект.ТабДок` из `FormModule` после вызова `Объект.Метод()` — ненадёжно (не факт, что форма увидит то же серверное состояние объекта). Рабочий паттерн — функция с `Возврат`, вызываемая через `РеквизитФормыВЗначение`:
 

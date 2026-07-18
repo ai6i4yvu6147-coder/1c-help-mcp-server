@@ -181,15 +181,21 @@ def build_dcs_selection_item(field: str, *, use: bool = True) -> dict: ...
 (авто-выбор) — отдельный флаг `auto=True` без `field`. Групповой/иерархический выбор —
 за рамками первого среза.
 
-## `build_dcs_order_item`
+## `build_dcs_order_item` — реализовано (2026-07-18)
 
 ```python
-def build_dcs_order_item(field: str, *, direction: str = 'Asc') -> dict:  # Asc | Desc
+def build_dcs_order_item(field: str | None = None, *, direction: str = 'Asc', auto: bool = False) -> dict:  # Asc | Desc
 ```
 
-`OrderItemAuto` — `auto=True`. **Точную форму `dcsset:OrderItemField` подтвердить на
-реальной выгрузке с явной сортировкой перед реализацией** (в проверенных каталожных
-схемах встречался только `OrderItemAuto`) — политика «расширяем от реальных выгрузок».
+`OrderItemAuto` — `auto=True`. Форма `dcsset:OrderItemField` **подтверждена** на реальной
+выгрузке с явной сортировкой (`ФТ_АвансыПоставщикам/ОсновнаяСхемаКомпоновкиДанных` —
+top-level `<dcsset:order>` с двумя `OrderItemField`: `Списание`, `Организация`, оба `Asc`).
+Энкодер эмитит явный `<dcsset:order>` на уровне настроек **между `dataParameters` и
+`outputParameters`** (реальный порядок дочерних той же выгрузки); передаётся через
+`order_items` у layout-билдеров. Секция `order` есть в `describe(unit='dcs', name='order')`.
+Направления — `ORDER_DIRECTIONS = ('Asc', 'Desc')`. Валидатор флагует ссылку на
+несуществующее поле (`settings order references unknown field`). Внутри структурных
+элементов (группировки/таблицы) по-прежнему авто-`OrderItemAuto` — без регрессии.
 
 ## Значения правой части и пользовательские настройки (подтверждено на данных 2026-07-18)
 
@@ -256,10 +262,11 @@ Enum-константа `COMPARISON_TYPES` — в библиотеке, одна
 ## Расширения энкодера `_encode_settings_variant`
 
 - Параметризовать `right`: `value`/`value_type` (через `_append_value_type`), с правилами
-  дефолта выше.
-- Эмитить `dcsset:userSettingPresentation` для элементов фильтра.
-- Явный `dcsset:order` с `OrderItemField` (после подтверждения формы) наряду с текущим
-  `OrderItemAuto`.
+  дефолта выше. **Реализовано.**
+- Эмитить `dcsset:userSettingPresentation` для элементов фильтра. **Реализовано.**
+- Явный `dcsset:order` с `OrderItemField` наряду с текущим `OrderItemAuto`.
+  **Реализовано (2026-07-18)** — форма подтверждена на `ФТ_АвансыПоставщикам`, эмитится
+  между `dataParameters` и `outputParameters`, вход через `order_items`.
 - Всё за флагами присутствия ключей — **старые `dict`-вызовы дают тот же XML** (round-trip
   на текущих reference-файлах не должен измениться).
 
@@ -319,7 +326,8 @@ build_dcs_flat_layout(
   (минимум механики), типовые — по мере частотности.
 - `FilterItemGroup` (И/ИЛИ-группы отборов) — за рамками первого среза; вводить, когда
   встретится реальная потребность.
-- Явный `OrderItemField` — только после reference-выгрузки с ним.
+- ~~Явный `OrderItemField` — только после reference-выгрузки с ним.~~ **Закрыто
+  (2026-07-18)**: подтверждён на `ФТ_АвансыПоставщикам`, реализован (`build_dcs_order_item`).
 
 ## Ссылки
 
