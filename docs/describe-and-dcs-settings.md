@@ -11,8 +11,12 @@
    сырой `dict` без типизации, а именно они доминируют в каталожных схемах.
 
 Эти две вещи — одно целое: `describe(unit='dcs')` **сериализует ровно словарь этих
-хелперов**. Добавили хелпер/enum → `describe` обновился сам. Статус: дизайн, до
-реализации.
+хелперов**. Добавили хелпер/enum → `describe` обновился сам. Статус: **реализовано** —
+`describe(unit='dcs')` покрывает все 12 разделов (`dataset`, `dataset_link`, `field`,
+`role`, `calculated_field`, `total_field`, `parameter`, `output_parameter`, `filter`,
+`selection`, `order`, `layout`); каждый привязан инвариант-тестом к сигнатуре билдера
+(или к константе `DCS_FIELD_ROLE_KEYS` / объединению layout-билдеров) в
+`tests/test_vocabulary.py`.
 
 ---
 

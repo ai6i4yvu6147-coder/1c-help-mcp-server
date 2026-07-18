@@ -205,6 +205,7 @@ def _build_layout(layout: dict):
     filter_items = layout.get("filter_items") or []
     data_parameters = layout.get("data_parameters") or []
     order_items = layout.get("order_items") or []
+    output_parameters = layout.get("output_parameters") or []
 
     mode = layout.get("mode")
     if mode is None:
@@ -224,6 +225,7 @@ def _build_layout(layout: dict):
             filter_items=filter_items,
             data_parameters=data_parameters,
             order_items=order_items,
+            output_parameters=output_parameters,
         )
     if mode == "pivot_table":
         return build_dcs_table_layout(
@@ -234,6 +236,7 @@ def _build_layout(layout: dict):
             filter_items=filter_items,
             data_parameters=data_parameters,
             order_items=order_items,
+            output_parameters=output_parameters,
         )
     if mode == "flat":
         return build_dcs_flat_layout(
@@ -242,6 +245,7 @@ def _build_layout(layout: dict):
             filter_items=filter_items,
             data_parameters=data_parameters,
             order_items=order_items,
+            output_parameters=output_parameters,
         )
     raise ValueError(
         f"layout.mode {mode!r} не поддерживается "

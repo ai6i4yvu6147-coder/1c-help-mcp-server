@@ -228,6 +228,23 @@ def test_set_dcs_layout_order_items_reach_schema(ct, tmp_path):
     assert "<dcsset:orderType>Desc</dcsset:orderType>" in schema
 
 
+def test_set_dcs_layout_output_parameters_reach_schema(ct, tmp_path):
+    # output_parameters in layout must flow through set_dcs -> _build_layout -> the builder
+    # -> dcsset:outputParameters (previously dropped: _build_layout never read the key, so a
+    # МакетОформления passed via set_dcs was silently lost).
+    ct.create("report", "ОтчМакет", "Отчёт с макетом оформления")
+    inputs = _skd_inputs()
+    inputs["layout"]["output_parameters"] = [
+        {"name": "МакетОформления", "value": "Основной"},
+    ]
+    ct.set_dcs("ОтчМакет", **inputs)
+    assert ct.validate("ОтчМакет")["ok"] is True
+    ct.export("ОтчМакет", str(tmp_path / "out"))
+    schema = _schema_xml(tmp_path / "out", "ОтчМакет")
+    assert "<dcsset:outputParameters>" in schema
+    assert "<dcscor:parameter>МакетОформления</dcscor:parameter>" in schema
+
+
 def _schema_xml(root, name):
     return (root / name / name / "Templates" / "ОсновнаяСхемаКомпоновкиДанных"
             / "Ext" / "Template.xml").read_text(encoding="utf-8")

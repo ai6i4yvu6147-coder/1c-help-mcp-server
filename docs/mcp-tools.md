@@ -19,7 +19,7 @@
 | `search_query` | Полнотекстовый поиск только по языку запросов |
 | `list_query_topics` | Список тем запросов: `keyword`, `function`, `statement`, `operator`, `literal`, `article` |
 | `validate_code` | Эвристика: вызовы `.Метод()`, которых нет в API объекта |
-| `describe` | Reflection-справка конструктора: `unit` (`dcs`) + `name` (раздел, напр. `filter`/`selection`/`order`); без `name` — обзор. Поля/enum/пример для сборки payload. Не путать со справкой BSL |
+| `describe` | Reflection-справка конструктора: `unit` (`dcs`) + `name` (12 разделов: `dataset`/`dataset_link`/`field`/`role`/`calculated_field`/`total_field`/`parameter`/`output_parameter`/`filter`/`selection`/`order`/`layout`); без `name` — обзор. Поля/enum/пример для сборки payload. Не путать со справкой BSL |
 | `create` | Конструктор: создать проект. `kind`: `processor`/`report`; `archetype` (report): `skd`/`macet` |
 | `set_object` | Конструктор: объектная оболочка — реквизиты `[{name, type_raw, qualifiers?}]` и (отчёт) табличные части |
 | `set_form` | Конструктор: форма (fields, groups, commands, events: [{event, handler}]; отчёт: form_name/spreadsheet_fields) |
