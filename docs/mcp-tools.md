@@ -66,10 +66,13 @@ stateless). Payload полей СКД (отбор/выборка/порядок)
 **Инвариант:** число write-tools не зависит от числа видов объектов/типов элементов —
 новое = данные (значение `kind`, запись в `describe`), не новый tool.
 
-Отложено: свести дубли `shared/constructor/` (`export.py`+`export_report.py`,
-`validate.py`+`validate_report.py`) в один модуль с ветвлением по `kind`; мульти-набор в
-`set_dcs` (`datasets`/`dataset_links` — сейчас один запрос+поля); `set_dcs`-дефолты
-(базовый реквизит → отбор+`QuickAccess`, период → параметр-трио).
+**Сделано (ранее числилось отложенным):** дубли `shared/constructor/` сведены — один
+`export.py`/`validate.py` с ветвлением по `kind` (нет `*_report.py`); мульти-набор в
+`set_dcs` реализован (`datasets`/`dataset_links` сквозняком до `build_dcs_schema`);
+период → параметр-трио доступен как opt-in `set_dcs(standard_period=True)`.
+
+Отложено: авто-дефолты `set_dcs` (базовый реквизит → отбор+`QuickAccess` без явного
+`filter_items`); крепление СКД к Catalog/Document (Stage G).
 
 ### Конструктор метаданных (внешние обработки)
 
@@ -115,7 +118,8 @@ Configurator ищет формы по `<каталог_xml>/<Имя>/Forms/...`.
 
 1. `create(kind="report", name="ТрудозатратыПоИсполнителям", synonym="Трудозатраты по исполнителям")` — `archetype` по умолчанию `skd`
 2. `set_dcs(project=..., query=..., fields=[...], standard_period=true, totals=[{"data_path":"Часы","expression":"Сумма(Часы)"}], layout={"group_by":[{"field":"Исполнитель"},{"field":"Задача"}], "selection":[...]})`
-   - `layout.mode`: `group_with_details` (список с группировкой + подытоги на каждом уровне — несколько полей в `group_by` дают вложенные уровни, не один составной ключ), `pivot_table` (нужны и `rows`, и `columns`), `flat`. Без `mode` архетип определяется по форме объекта.
+   - `layout.mode`: `group_with_details` (список с группировкой + подытоги на каждом уровне — каждое поле `group_by` даёт **свой вложенный уровень** с подытогами, а не один составной ключ; завершается пустой детальной группой), `pivot_table` (нужны и `rows`, и `columns`), `flat`. Без `mode` архетип определяется по форме объекта.
+   - Иерархические измерения: `group_by=[{"field":"ТС","group_type":"Hierarchy"},{"field":"Водитель"}]` — `group_type` ∈ `Items`/`Hierarchy`/`HierarchyOnly` (по умолч. `Items`). Форма подтверждена на рукотворном `ВнешнийОтчет1`.
    - Отбор/выборка/порядок — в `layout` (`filter_items`/`selection`/`order_items`); контракт полей — `describe(unit='dcs')`. Основные отборы выносите в польз. настройки: `filter_items=[{"field":"Организация","comparison":"Equal","view_mode":"QuickAccess","generate_user_setting_id":true}]`.
    - **Несколько наборов данных:** вместо `query`/`fields` передайте `datasets=[{name, query, fields, data_source?}]` + `dataset_links=[{source_dataset, destination_dataset, source_expression, destination_expression, required?}]` (взаимоисключимо с `query`/`fields`). Guidance: предпочитайте один набор с `ЛЕВОЕ СОЕДИНЕНИЕ`; связь наборов — крайний случай (регистр+остатки).
    - **Канонический период:** проще всего `standard_period=true` — добавит трио `Период` (`v8:StandardPeriod`, `use:"Always"`) + `НачалоПериода`/`КонецПериода` (`xs:dateTime`, `use_restriction:true`, `expression:"&Период.ДатаНачала"`/`"&Период.ДатаОкончания"`) в параметры; в тексте запроса ссылайтесь на `&НачалоПериода`/`&КонецПериода`, не на `&Период.ДатаНачала` напрямую. Либо задайте эти параметры вручную через `parameters=[...]`.
