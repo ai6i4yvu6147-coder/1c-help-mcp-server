@@ -19,6 +19,7 @@
 | `search_query` | Полнотекстовый поиск только по языку запросов |
 | `list_query_topics` | Список тем запросов: `keyword`, `function`, `statement`, `operator`, `literal`, `article` |
 | `validate_code` | Эвристика: вызовы `.Метод()`, которых нет в API объекта |
+| `describe` | Reflection-справка конструктора: `unit` (`dcs`) + `name` (раздел, напр. `filter`/`selection`); без `name` — обзор. Поля/enum/пример для сборки payload. Не путать со справкой BSL |
 | `create_processor` | Конструктор: создать проект внешней обработки |
 | `set_attributes` | Конструктор: объектные реквизиты `[{name, type_raw, qualifiers?}]` |
 | `set_form` | Конструктор: форма (fields, groups, commands, events: [{event, handler}]) |

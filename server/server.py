@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from server.tools import HelpTools
 from server.constructor_tools import ConstructorTools
+from onec_metadata_schema import vocabulary as dcs_vocabulary
 from shared.security import mask_secrets
 from shared.tool_calls_log import (
     ToolCallLogger,
@@ -439,6 +440,22 @@ async def list_tools() -> list[Tool]:
                 "required": ["report", "path"],
             },
         ),
+        Tool(
+            name="describe",
+            description="Конструктор: словарь возможностей сеттеров (reflection-справка). "
+                        "unit — крупная единица (сейчас 'dcs'); name — раздел (напр. 'filter', "
+                        "'selection'). Без name — обзор разделов. Отдаёт поля с типами/enum, "
+                        "пример и рекомендации для сборки payload (напр. отборов СКД). "
+                        "Не путать со справкой по BSL/языку запросов (get_syntax, get_query_syntax).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "unit": {"type": "string", "description": "Единица: dcs"},
+                    "name": {"type": "string", "description": "Раздел единицы, напр. filter (опционально)"},
+                },
+                "required": ["unit"],
+            },
+        ),
     ])
 
 
@@ -546,6 +563,10 @@ async def _dispatch(name: str, arguments: dict) -> list[TextContent]:
         )
         text = json.dumps(results, ensure_ascii=False, indent=2) if results else "Пусто (загрузите shquery_ru)"
         return [TextContent(type="text", text=text)]
+
+    if name == "describe":
+        result = dcs_vocabulary.describe(arguments["unit"], arguments.get("name"))
+        return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
 
     if name == "validate_code":
         errors = tools.validate_code(
