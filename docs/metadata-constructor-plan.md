@@ -4,7 +4,7 @@
 
 ## Идея
 
-Помимо справки/валидации BSL-синтаксиса (уже реализовано: `get_syntax`, `search_syntax`, `get_object_api`, `validate_code`), проект расширяется вторым назначением: конструктор корректных 1C-артефактов. Сначала — внешние обработки, затем — расширения конфигурации.
+Помимо справки (уже реализовано: `get_syntax`, `search_syntax`, `get_object_api`), проект расширяется вторым назначением: конструктор корректных 1C-артефактов. Сначала — внешние обработки, затем — расширения конфигурации. (Эвристическая BSL-валидация `validate_code` отключена — давала массовый false-positive шум; вернётся полноценным линтером.)
 
 Модель работы: агент работает с «проектом» в БД сервера (`constructor.db`: create → attributes → form → module code → validate → export). Сервер управляет GUID/ItemID/перекрёстными ссылками через библиотеку `1c-metadata-schema` (stateless builder).
 
@@ -47,7 +47,7 @@ from onec_metadata_schema.builder import (
 | `set_attributes(processor, [{name, type_raw, qualifiers?}, ...])` | объектные реквизиты |
 | `set_form(processor, fields=[], groups=[], table=?, commands=[], events=?)` | параметры 1:1 с `build_form_layout` |
 | `set_module_code(processor, module, code)` | тело модуля |
-| `validate_project(processor)` | (1) `validate()` библиотеки над деревьями; (2) `validate_code`/`get_object_api` над BSL; (3) у каждого `Event`/`Command.Action` в спеке формы есть процедура в сохранённом модуле |
+| `validate_project(processor)` | (1) `validate()` библиотеки над деревьями; (2) ~~`validate_code` над BSL~~ — отключено (заглушка-seam под будущий линтер); (3) у каждого `Event`/`Command.Action` в спеке формы есть процедура в сохранённом модуле |
 | `export_project(processor, path)` | `build_*` + `serialize()` → дерево в `path/<Name>/` + модули |
 
 **Каталог экспорта:** `path` — родительский контейнер (напр. `C:/fullAI`). Корневой XML: `path/<Name>/<Name>.xml`. Формы и модули: `path/<Name>/<Name>/Forms/...` (Configurator добавляет `<Name>/` относительно каталога корневого XML).

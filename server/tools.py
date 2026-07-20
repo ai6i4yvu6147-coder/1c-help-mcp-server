@@ -549,70 +549,18 @@ class HelpTools:
     def validate_code(
         self, code: str, version: str | None = None, max_errors: int = 50
     ) -> list[dict]:
+        """Эвристическая BSL-проверка по справке — ОТКЛЮЧЕНА (всегда `[]`).
+
+        Прежняя реализация лексически ловила каждое `Получатель.Метод(` и выдавала
+        `unknown_object`, если получатель не найден в справке как платформенный объект.
+        Но получатель почти всегда — локальная переменная / параметр / реквизит формы
+        или объекта (`ТЗ = Новый ТаблицаЗначений; ТЗ.Добавить()`,
+        `Запрос.Выполнить().Выбрать()`, ...), а трекинга типов переменных не было — поэтому
+        сразу после загрузки справки проверка давала массовые false positive (~50 шума на
+        1 реальную) и как отладочный сигнал была бесполезна.
+
+        Оставлено единой точкой-заглушкой под будущий полноценный линтер: пока возвращает
+        пусто, поэтому `validate(project=...)` больше не тонет в ложных срабатываниях.
+        История эвристики — в git; оживить = заменить тело этого метода.
         """
-        Проверка кода 1С: поиск вызовов .Метод(), которых нет в API объекта.
-        Возвращает список {object, method, line, suggestion} для каждой предполагаемой ошибки.
-        """
-        conn = self._get_connection(version)
-        if not conn:
-            return []
-
-        def _ru_key(n: str) -> str:
-            return n.split("(")[0].strip() if n else ""
-
-        errors = []
-        lines = code.splitlines()
-        # Ищем вызовы Объект.Метод( — идентификаторы: буквы, цифры, подчёркивание, точка
-        pattern = re.compile(
-            r"([\w\u0400-\u04FF]+(?:\.[\w\u0400-\u04FF]+)*)\.([\w\u0400-\u04FF]+)\s*\(",
-            re.UNICODE,
-        )
-        seen = set()
-
-        for line_no, line in enumerate(lines, 1):
-            for m in pattern.finditer(line):
-                obj_part, method_name = m.group(1), m.group(2)
-                # Пропускаем типичные не-объекты
-                if method_name in ("ЗначениеЗаполнено", "ТипЗнч", "Формат") and "." not in obj_part:
-                    continue
-                key = (line_no, obj_part, method_name)
-                if key in seen:
-                    continue
-                seen.add(key)
-
-                # Определяем API-объект
-                first = obj_part.split(".")[0]
-                api_obj = self._METADATA_TO_MANAGER.get(first, obj_part)
-
-                api = self.get_object_api(api_obj, version)
-                if not api:
-                    errors.append({
-                        "object": obj_part,
-                        "method": method_name,
-                        "line": line_no,
-                        "kind": "unknown_object",
-                        "message": f"объект «{obj_part}» не найден в справке",
-                    })
-                    if len(errors) >= max_errors:
-                        return errors
-                    continue
-
-                methods = {_ru_key(x["name"]) for x in api.get("methods", [])}
-                if _ru_key(method_name) not in methods:
-                    suggestion_list = []
-                    for mn in methods:
-                        if method_name.lower() in mn.lower() or mn.lower() in method_name.lower():
-                            suggestion_list.append(mn)
-                    suggestion = " или ".join(suggestion_list[:3]) if suggestion_list else "проверьте список методов объекта"
-                    errors.append({
-                        "object": obj_part,
-                        "method": method_name,
-                        "line": line_no,
-                        "kind": "invalid_method",
-                        "api_object": api.get("object", api_obj),
-                        "suggestion": suggestion or "проверьте список методов объекта",
-                    })
-                    if len(errors) >= max_errors:
-                        return errors
-
-        return errors
+        return []

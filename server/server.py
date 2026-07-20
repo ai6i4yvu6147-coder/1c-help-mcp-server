@@ -147,19 +147,6 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
-            name="validate_code",
-            description="Проверка кода 1С на некорректные вызовы методов. Ищет вызовы Объект.Метод(), которых нет в API объекта. Например: Справочники.Х.Создать() — ошибка, нужен СоздатьЭлемент() или СоздатьГруппу().",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "code": {"type": "string", "description": "Текст кода 1С для проверки"},
-                    "version": {"type": "string", "description": "Версия платформы, опционально"},
-                    "max_errors": {"type": "integer", "description": "Макс. число ошибок в отчёте", "default": 50},
-                },
-                "required": ["code"],
-            },
-        ),
-        Tool(
             name="set_form",
             description="Конструктор: задать форму обработки ИЛИ отчёта (поля, группы, команды, события). "
                         "project — единый хэндл (обработка или отчёт). Для отчёта доступны "
@@ -346,8 +333,9 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="validate",
-            description="Конструктор: проверить проект — обработку или отчёт (XML-структура, "
-                        "BSL, обработчики команд/событий).",
+            description="Конструктор: проверить проект — обработку или отчёт (XML-структура "
+                        "метаданных + наличие процедур-обработчиков команд/событий формы). "
+                        "Эвристическая BSL-проверка по справке отключена (давала массовый шум).",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -500,25 +488,6 @@ async def _dispatch(name: str, arguments: dict) -> list[TextContent]:
     if name == "describe":
         result = dcs_vocabulary.describe(arguments["unit"], arguments.get("name"))
         return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
-
-    if name == "validate_code":
-        errors = tools.validate_code(
-            code=arguments["code"],
-            version=arguments.get("version"),
-            max_errors=arguments.get("max_errors", 50),
-        )
-        if not errors:
-            text = "Ошибок не найдено."
-        else:
-            lines = [f"Найдено {len(errors)} предполагаемых ошибок:"]
-            for e in errors:
-                if e.get("kind") == "unknown_object":
-                    lines.append(f"  Строка {e['line']}: {e['object']}.{e['method']}() — {e.get('message', 'объект не найден в справке')}")
-                else:
-                    sug = f" → возможно: {e['suggestion']}" if e.get("suggestion") and "проверьте" not in str(e.get("suggestion", "")) else ""
-                    lines.append(f"  Строка {e['line']}: {e['object']}.{e['method']}() — метод не найден в {e.get('api_object', '')}{sug}")
-            text = "\n".join(lines)
-        return [TextContent(type="text", text=text)]
 
     if name == "set_form":
         result = constructor_tools.set_form_any(

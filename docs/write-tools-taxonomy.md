@@ -167,7 +167,8 @@ edit-tools вызваны. Нет схемы СКД — просто не зва
 - **`1c-metadata-schema`** — не трогаем, движок уже единый (`build_external_report` не
   форкнут). Таксономия — чисто про MCP-слой H-MCP.
 - **`constructor.db`** — состояние проектов; схема уже несёт `kind`.
-- **BSL-валидация** — переиспользуем `validate_code` / `get_object_api`.
+- **BSL-валидация** — эвристический `validate_code` отключён (массовый false-positive шум
+  без трекинга типов); `HelpTools.validate_code` — заглушка-seam под будущий линтер.
 
 ## Открытые решения
 

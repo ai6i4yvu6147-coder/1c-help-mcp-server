@@ -9,7 +9,7 @@ For AI agents and developers: see [`docs/`](docs/) (start with [`docs/agent-map.
 1. Build: `build_all.bat` → creates `1c_help_mcp_server_Portable` in the parent folder.
 2. In Portable: `Admin.bat` → «Add help» → folder with `shcntx_ru`, `shlang_ru`, and `shquery_ru` → version (8.3.27).
 3. MCP: add a `command` in the client config pointing to `Server\1c-help-server.exe` inside the portable folder.
-4. BSL tools: `get_syntax`, `search_syntax`, `get_object_api`, `validate_code`, `list_syntax`, `list_help_versions`.
+4. BSL tools: `get_syntax`, `search_syntax`, `get_object_api`, `list_syntax`, `list_help_versions`.
 5. Query tools: `get_query_syntax`, `search_query`, `list_query_topics`.
 
 ## Project layout (sources)

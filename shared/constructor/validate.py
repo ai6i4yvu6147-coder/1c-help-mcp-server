@@ -1,9 +1,14 @@
 """Combined validation for metadata constructor projects (processor + report).
 
 One entry point for both object views (was split as ``validate.py`` + ``validate_report.py``):
-library ``validate()`` on the built trees + a BSL check on every module. A processor also
-checks that command actions and declared form-event handlers have procedures in FormModule;
-reports don't (the report form's handlers aren't validated here -- preserved behavior).
+library ``validate()`` on the built trees + a per-module BSL check. A processor also checks
+that command actions and declared form-event handlers have procedures in FormModule; reports
+don't (the report form's handlers aren't validated here -- preserved behavior).
+
+The BSL check delegates to ``help_tools.validate_code``, which is currently a disabled stub
+(returned ~50 false positives : 1 real once help was loaded -- no variable-type tracking).
+The loop is kept as the seam: when a real BSL linter replaces ``validate_code``, project
+validation picks it up automatically. Until then ``bsl_errors`` is always empty.
 """
 import re
 
