@@ -78,6 +78,133 @@ def test_e2e_processor_missing_handler_fails_validate(dispatch):
     assert "ПриОткрытии" in text
 
 
+def test_e2e_processor_headless_attribute_and_command(dispatch, tmp_path):
+    """The three things the constructor was (wrongly) reported as unable to do: a
+    headless form requisite (kind='attribute'), a button wired to a command handler, and
+    an object module of arbitrary procedures -- through the full dispatch -> export."""
+    dispatch("create", {"kind": "processor", "name": "E2EОбрПолн", "synonym": "E2E полная"})
+    dispatch("set_object", {
+        "project": "E2EОбрПолн",
+        "attributes": [{"name": "Комментарий", "type_raw": "xs:string"}],
+    })
+    dispatch("set_form", {
+        "project": "E2EОбрПолн",
+        "fields": [
+            {"name": "Организация", "type_raw": "cfg:CatalogRef.Организации"},
+            {"name": "СлужебныйФлаг", "kind": "attribute", "type_raw": "xs:boolean"},
+        ],
+        "commands": [{"name": "Заполнить", "title_ru": "Заполнить", "action": "Заполнить"}],
+    })
+    dispatch("set_module", {
+        "project": "E2EОбрПолн", "module": "ObjectModule",
+        "code": "Процедура ОбработатьДанные() Экспорт\nКонецПроцедуры",
+    })
+    dispatch("set_module", {
+        "project": "E2EОбрПолн", "module": "FormModule",
+        "code": "&НаКлиенте\nПроцедура Заполнить(Команда)\nКонецПроцедуры",
+    })
+
+    assert "прошёл проверку" in dispatch("validate", {"project": "E2EОбрПолн"})
+
+    dispatch("export", {"project": "E2EОбрПолн", "path": str(tmp_path / "out")})
+    form_xml = (tmp_path / "out" / "E2EОбрПолн" / "E2EОбрПолн"
+                / "Forms" / "Форма" / "Ext" / "Form.xml").read_text(encoding="utf-8")
+    # A normal field appears twice (control + Attribute); a headless one only as the
+    # Attribute -> exactly once. This is the structural proof of "no control emitted".
+    assert form_xml.count('name="Организация"') == 2
+    assert form_xml.count('name="СлужебныйФлаг"') == 1
+    # the command button is present
+    assert "ФормаЗаполнить" in form_xml
+
+    obj_module = (tmp_path / "out" / "E2EОбрПолн" / "E2EОбрПолн"
+                  / "Ext" / "ObjectModule.bsl").read_text(encoding="utf-8")
+    assert "ОбработатьДанные" in obj_module
+
+
+def test_e2e_processor_form_with_value_table_validates_and_exports(dispatch, tmp_path):
+    """Regression: a form with a table+attribute group (таблица значений на форме) used
+    to fail validate/export with an opaque `Ошибка: 'column'` while set_form itself
+    succeeded. The natural payload (`name` on the table field, no `title_ru`) must now
+    round-trip create -> set_form -> validate -> export."""
+    dispatch("create", {"kind": "processor", "name": "E2EТабл", "synonym": "E2E таблица"})
+    ok = dispatch("set_form", {
+        "project": "E2EТабл",
+        "fields": [{"name": "Поле1", "type_raw": "xs:string"}],
+        "groups": [{
+            "name": "Группа1",
+            "table": {"name": "Таб1", "data_path": "Атр1", "fields": [{"name": "Кол1"}]},
+            "attribute": {"name": "Атр1", "columns": [{"name": "Кол1", "type_raw": "xs:string"}]},
+        }],
+        "commands": [{"name": "Команда1"}],
+    })
+    assert "обновлена" in ok  # set_form was fine before too; assert it still is
+
+    # the step that used to raise `'column'`
+    assert "прошёл проверку" in dispatch("validate", {"project": "E2EТабл"})
+
+    dispatch("export", {"project": "E2EТабл", "path": str(tmp_path / "out")})
+    form_xml = (tmp_path / "out" / "E2EТабл" / "E2EТабл"
+                / "Forms" / "Форма" / "Ext" / "Form.xml").read_text(encoding="utf-8")
+    assert 'name="Таб1"' in form_xml          # the Table control
+    assert 'Атр1.Кол1' in form_xml            # column field bound to <data_path>.<column>
+
+
+def test_e2e_patch_module_targeted_edit_preserves_surrounding_code(dispatch, tmp_path):
+    """patch_module replaces only the targeted fragment; the unrelated procedure stays
+    intact -- the "don't clobber the rest of the module on a small edit" guarantee."""
+    dispatch("create", {"kind": "processor", "name": "E2EПатч", "synonym": "E2E патч"})
+    original = (
+        "Процедура Первая()\n"
+        "    Значение = 1;\n"
+        "КонецПроцедуры\n\n"
+        "Процедура Вторая()\n"
+        "    Значение = 2;\n"
+        "КонецПроцедуры"
+    )
+    dispatch("set_module", {"project": "E2EПатч", "module": "ObjectModule", "code": original})
+
+    out = dispatch("patch_module", {
+        "project": "E2EПатч", "module": "ObjectModule",
+        "old": "    Значение = 1;", "new": "    Значение = 42;",
+    })
+    assert "пропатчен" in out
+
+    dispatch("export", {"project": "E2EПатч", "path": str(tmp_path / "out")})
+    code = (tmp_path / "out" / "E2EПатч" / "E2EПатч"
+            / "Ext" / "ObjectModule.bsl").read_text(encoding="utf-8")
+    assert "Значение = 42;" in code          # target changed
+    assert "Значение = 1;" not in code       # old gone
+    assert "Процедура Вторая()" in code      # unrelated procedure preserved
+    assert "Значение = 2;" in code           # ...and its body untouched
+
+
+def test_e2e_patch_module_ambiguous_match_rejected_unless_replace_all(dispatch):
+    dispatch("create", {"kind": "processor", "name": "E2EПатч2", "synonym": "E2E патч2"})
+    dispatch("set_module", {
+        "project": "E2EПатч2", "module": "FormModule", "code": "А = 1;\nА = 1;",
+    })
+    # two matches, no replace_all -> refuse rather than guess
+    with pytest.raises(ValueError, match="встречается"):
+        dispatch("patch_module", {
+            "project": "E2EПатч2", "module": "FormModule", "old": "А = 1;", "new": "А = 2;",
+        })
+    # explicit replace_all -> both replaced
+    out = dispatch("patch_module", {
+        "project": "E2EПатч2", "module": "FormModule",
+        "old": "А = 1;", "new": "А = 2;", "replace_all": True,
+    })
+    assert "2 замен" in out
+
+
+def test_e2e_patch_module_missing_fragment_is_error(dispatch):
+    dispatch("create", {"kind": "processor", "name": "E2EПатч3", "synonym": "E2E патч3"})
+    dispatch("set_module", {"project": "E2EПатч3", "module": "ObjectModule", "code": "А = 1;"})
+    with pytest.raises(ValueError, match="не найден"):
+        dispatch("patch_module", {
+            "project": "E2EПатч3", "module": "ObjectModule", "old": "Б = 2;", "new": "Б = 3;",
+        })
+
+
 def test_e2e_report_skd_lifecycle(dispatch, tmp_path):
     assert "Создан отчёт" in dispatch(
         "create", {"kind": "report", "name": "E2EОтч", "synonym": "E2E отчёт"}

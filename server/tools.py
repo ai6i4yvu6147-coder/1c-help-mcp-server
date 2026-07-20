@@ -324,7 +324,7 @@ class HelpTools:
         db_category = self._query_category_filter(category)
         if db_category:
             cursor = conn.execute(
-                """SELECT parent_name, name, description, category
+                """SELECT parent_name, name, full_name, description, category
                    FROM syntax_objects
                    WHERE category = ?
                    ORDER BY name""",
@@ -332,7 +332,7 @@ class HelpTools:
             )
         else:
             cursor = conn.execute(
-                """SELECT parent_name, name, description, category
+                """SELECT parent_name, name, full_name, description, category
                    FROM syntax_objects
                    WHERE category LIKE 'query_%'
                    ORDER BY category, name"""

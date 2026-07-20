@@ -1,5 +1,12 @@
-"""Import help from unpacked HBK (shcntx_ru, shlang_ru, shquery_ru) into SQLite."""
+"""Импорт справки 1С в SQLite.
+
+Источник — папка, где лежат либо архивы .hbk (shcntx_ru.hbk, shlang_ru.hbk,
+shquery_ru.hbk), либо уже распакованные каталоги с тем же именем. Архивы
+распаковываются во временную папку автоматически — вручную разархивировать не нужно.
+"""
 import json
+import shutil
+import tempfile
 from pathlib import Path
 
 import sys
@@ -7,23 +14,56 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared.db_manager import create_database, get_db_path, init_fts
 from shared.help_parser import parse_help_sources
+from shared.hbk_extractor import (
+    HELP_SOURCES,
+    extract_help_folder,
+    find_help_archives,
+)
+
+
+def _has_unpacked_sources(root_path: Path) -> bool:
+    return any((root_path / name).is_dir() for name in HELP_SOURCES)
 
 
 def import_help(root_path: Path, version: str, databases_dir: Path) -> tuple[bool, str]:
     """
-    Import help from root_path (containing shcntx_ru, shlang_ru and/or shquery_ru) into DB.
-    Returns (success, message).
+    Загрузить справку из root_path в БД версии version.
+
+    root_path может содержать:
+      * архивы .hbk (shcntx_ru.hbk, …) — распаковываются автоматически, либо
+      * уже распакованные каталоги (shcntx_ru/, …).
+
+    Возвращает (успех, сообщение).
     """
     root_path = root_path.resolve()
-    shcntx = root_path / "shcntx_ru"
-    shlang = root_path / "shlang_ru"
-    shquery = root_path / "shquery_ru"
+    tmp_dir: Path | None = None
+    try:
+        archives = find_help_archives(root_path)
+        if archives:
+            tmp_dir = Path(tempfile.mkdtemp(prefix="1c_help_hbk_"))
+            extract_help_folder(root_path, tmp_dir)
+            source_root = tmp_dir
+        elif _has_unpacked_sources(root_path):
+            source_root = root_path
+        else:
+            return False, (
+                "В папке не найдены ни архивы (shcntx_ru.hbk, shlang_ru.hbk, "
+                f"shquery_ru.hbk), ни распакованные каталоги: {root_path}"
+            )
+        return _build_database(source_root, root_path, version, databases_dir)
+    finally:
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    if not shcntx.exists() and not shlang.exists() and not shquery.exists():
-        return False, (
-            f"В папке не найдены shcntx_ru, shlang_ru или shquery_ru: {root_path}"
-        )
 
+def _build_database(
+    source_root: Path, origin_path: Path, version: str, databases_dir: Path
+) -> tuple[bool, str]:
+    """Разобрать справку из source_root и записать в БД.
+
+    origin_path сохраняется в meta.source_path (исходная папка пользователя —
+    архивы или каталоги), чтобы «обновить из сохранённого источника» работало.
+    """
     db_path = get_db_path(databases_dir, version)
     conn = create_database(db_path, version)
     init_fts(conn)
@@ -38,7 +78,7 @@ def import_help(root_path: Path, version: str, databases_dir: Path) -> tuple[boo
         count_methods = 0
         count_query = 0
 
-        for item in parse_help_sources(root_path):
+        for item in parse_help_sources(source_root):
             category = item.get("category", "object")
             is_query = category.startswith("query_")
             cursor = conn.execute(
@@ -96,7 +136,7 @@ def import_help(root_path: Path, version: str, databases_dir: Path) -> tuple[boo
 
         conn.execute(
             "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
-            ("source_path", str(root_path)),
+            ("source_path", str(origin_path)),
         )
         conn.execute(
             "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",

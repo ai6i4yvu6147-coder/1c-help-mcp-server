@@ -340,6 +340,42 @@ class ConstructorTools:
             return {"kind": kind, **self.set_module_code(project, module, code)}
         return {"kind": kind, **self.set_report_module_code(project, code, module=module)}
 
+    def patch_module(
+        self, project: str, module: str, old: str, new: str, replace_all: bool = False
+    ) -> dict:
+        """Targeted edit of one module (str_replace/Edit semantics), so an agent needn't
+        resend a whole ~12k-char module for a two-line change (and can't clobber unrelated
+        code by re-pasting). Exact-substring `old` -> `new`; `old` must occur exactly once
+        unless `replace_all`. The module must already exist (via `set_module`). Stores
+        through the same kind-branching path as `set_module`."""
+        if not old:
+            raise ValueError("old не может быть пустым")
+        if old == new:
+            raise ValueError("old и new совпадают — нечего менять")
+        kind = self._resolve_kind(project)
+        code = (self._get_row(project, kind).get("modules") or {}).get(module)
+        if code is None:
+            raise ValueError(
+                f"модуль «{module}» ещё не задан для «{project}» — сначала создайте его set_module"
+            )
+        count = code.count(old)
+        if count == 0:
+            raise ValueError(f"фрагмент не найден в модуле «{module}»")
+        if count > 1 and not replace_all:
+            raise ValueError(
+                f"фрагмент встречается {count} раз(а) в «{module}»; "
+                f"уточните old (добавьте контекст) или передайте replace_all=true"
+            )
+        new_code = code.replace(old, new)
+        self.set_module(project, module, new_code)
+        return {
+            "kind": kind,
+            "name": project,
+            "module": module,
+            "replacements": count if replace_all else 1,
+            "code_length": len(new_code),
+        }
+
     def validate(self, project: str, version: str | None = None) -> dict:
         """Library XML + BSL (+ handlers for processors) via one kind-branching helper."""
         kind = self._resolve_kind(project)

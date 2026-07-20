@@ -164,14 +164,19 @@ async def list_tools() -> list[Tool]:
             description="Конструктор: задать форму обработки ИЛИ отчёта (поля, группы, команды, события). "
                         "project — единый хэндл (обработка или отчёт). Для отчёта доступны "
                         "form_name/form_synonym/spreadsheet_fields (своя управляемая форма макетного отчёта). "
-                        "Параметры соответствуют build_form_layout.",
+                        "Детали payload (поля/группы/команды/события) — describe(unit='form').",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "project": {"type": "string", "description": "Имя проекта (обработка или отчёт)"},
-                    "fields": {"type": "array", "items": {"type": "object"}, "description": "Плоские поля формы"},
-                    "groups": {"type": "array", "items": {"type": "object"}, "description": "Группы и таблицы"},
-                    "commands": {"type": "array", "items": {"type": "object"}, "description": "Команды формы"},
+                    "fields": {
+                        "type": "array", "items": {"type": "object"},
+                        "description": "Плоские поля формы: [{name, type_raw, kind?}] — kind "
+                                       "input|checkbox|radio|attribute (attribute — безголовый "
+                                       "реквизит формы без элемента). См. describe(unit='form', name='field').",
+                    },
+                    "groups": {"type": "array", "items": {"type": "object"}, "description": "Группы, таблицы, вкладки (describe(unit='form', name='group'))"},
+                    "commands": {"type": "array", "items": {"type": "object"}, "description": "Команды формы + кнопки (describe(unit='form', name='command'))"},
                     "events": {
                         "type": "array",
                         "items": {"type": "object"},
@@ -208,8 +213,9 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="set_object",
-            description="Конструктор: объектная оболочка проекта — реквизиты и (для отчёта) "
-                        "табличные части. Один вызов = полная замена оболочки.",
+            description="Конструктор: объектная оболочка проекта — реквизиты объекта и (для отчёта) "
+                        "табличные части. Один вызов = полная замена оболочки. "
+                        "Реквизит ОБЪЕКТА (здесь) ≠ реквизит формы (set_form). Payload — describe(unit='object').",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -230,11 +236,12 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="set_dcs",
-            description="Конструктор: схема компоновки данных проекта (запрос, поля, "
-                        "параметры, вычисляемые/итоговые поля, layout). Отвязана от «отчёта»: СКД крепится "
-                        "и к Catalog/Document (пока в конструкторе — только отчёты). Группировки, отбор и "
-                        "сортировка — в layout (rows/columns/selection/filter_items/order_items), не в тексте "
-                        "запроса. Payload полей отбора/порядка — см. describe(unit='dcs').",
+            description="Конструктор: схема компоновки данных (СКД) отчёта — запрос, поля, "
+                        "параметры, вычисляемые/итоговые поля, layout. СКД поддержана только для отчётов "
+                        "(report); обработку собирают БЕЗ СКД — set_object + set_form + set_module. "
+                        "Группировки, отбор и сортировка — в layout "
+                        "(rows/columns/selection/filter_items/order_items), не в тексте запроса. "
+                        "Payload полей отбора/порядка — см. describe(unit='dcs').",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -302,7 +309,9 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="set_module",
-            description="Конструктор: текст модуля проекта (ObjectModule или FormModule).",
+            description="Конструктор: текст модуля обработки или отчёта (ObjectModule — модуль "
+                        "объекта с произвольными процедурами; FormModule — модуль формы, обработчики "
+                        "команд и событий).",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -314,8 +323,31 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="patch_module",
+            description="Конструктор: точечная правка модуля обработки/отчёта — замена фрагмента "
+                        "BSL (аналог str_replace/Edit), без пересылки всего модуля. old меняется на "
+                        "new по точному совпадению; old должен встречаться РОВНО один раз (иначе "
+                        "добавьте контекст в old или передайте replace_all=true). Модуль должен быть "
+                        "предварительно создан через set_module.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project": {"type": "string", "description": "Имя проекта (обработка или отчёт)"},
+                    "module": {"type": "string", "description": "ObjectModule или FormModule"},
+                    "old": {"type": "string", "description": "Заменяемый фрагмент (точное совпадение)"},
+                    "new": {"type": "string", "description": "Новый фрагмент"},
+                    "replace_all": {
+                        "type": "boolean",
+                        "description": "Заменить все вхождения old (по умолчанию false — требуется одно).",
+                    },
+                },
+                "required": ["project", "module", "old", "new"],
+            },
+        ),
+        Tool(
             name="validate",
-            description="Конструктор: проверить проект (XML-структура, BSL, обработчики команд/событий).",
+            description="Конструктор: проверить проект — обработку или отчёт (XML-структура, "
+                        "BSL, обработчики команд/событий).",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -327,8 +359,9 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="export",
-            description="Конструктор: экспортировать проект. path — родительский каталог; "
-                        "файлы пишутся в path/<Имя>/ (корневой XML: path/<Имя>/<Имя>.xml).",
+            description="Конструктор: экспортировать проект — обработку или отчёт — в файлы для "
+                        "Конфигуратора. path — родительский каталог; файлы пишутся в path/<Имя>/ "
+                        "(корневой XML: path/<Имя>/<Имя>.xml).",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -341,15 +374,17 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="describe",
             description="Конструктор: словарь возможностей сеттеров (reflection-справка). "
-                        "unit — крупная единица (сейчас 'dcs'); name — раздел (напр. 'filter', "
-                        "'selection'). Без name — обзор разделов. Отдаёт поля с типами/enum, "
-                        "пример и рекомендации для сборки payload (напр. отборов СКД). "
+                        "unit — крупная единица: 'dcs' (СКД отчёта), 'form' (форма обработки/отчёта: "
+                        "поля, группы, команды, события; в т.ч. безголовый реквизит kind='attribute'), "
+                        "'object' (реквизиты и табличные части объекта); name — раздел (напр. 'filter', "
+                        "'field', 'command'). Без name — обзор разделов. Отдаёт поля с типами/enum, "
+                        "пример и рекомендации для сборки payload. "
                         "Не путать со справкой по BSL/языку запросов (get_syntax, get_query_syntax).",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "unit": {"type": "string", "description": "Единица: dcs"},
-                    "name": {"type": "string", "description": "Раздел единицы, напр. filter (опционально)"},
+                    "unit": {"type": "string", "description": "Единица: dcs | form | object"},
+                    "name": {"type": "string", "description": "Раздел единицы, напр. filter/field/command (опционально)"},
                 },
                 "required": ["unit"],
             },
@@ -574,6 +609,20 @@ async def _dispatch(name: str, arguments: dict) -> list[TextContent]:
         summary = (
             f"Модуль {result['module']} проекта «{result['name']}» сохранён "
             f"({result['code_length']} симв.)."
+        )
+        return [TextContent(type="text", text=_format_response(summary, result))]
+
+    if name == "patch_module":
+        result = constructor_tools.patch_module(
+            project=arguments["project"],
+            module=arguments["module"],
+            old=arguments["old"],
+            new=arguments["new"],
+            replace_all=arguments.get("replace_all", False),
+        )
+        summary = (
+            f"Модуль {result['module']} проекта «{result['name']}» пропатчен "
+            f"({result['replacements']} замен(а), теперь {result['code_length']} симв.)."
         )
         return [TextContent(type="text", text=_format_response(summary, result))]
 

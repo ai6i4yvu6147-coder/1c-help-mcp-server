@@ -9,6 +9,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared.db_manager import list_databases, get_db_path, get_help_source_path
+from shared.hbk_extractor import HELP_SOURCES, find_help_archives
 from admin_tool.importer import import_help
 
 
@@ -98,19 +99,18 @@ class AdminApp:
         return self._db_entries[idx]
 
     def _is_valid_help_root(self, root_path: Path) -> bool:
-        return (
-            (root_path / "shcntx_ru").exists()
-            or (root_path / "shlang_ru").exists()
-            or (root_path / "shquery_ru").exists()
-        )
+        if find_help_archives(root_path):
+            return True
+        return any((root_path / name).is_dir() for name in HELP_SOURCES)
 
     def _validate_help_root(self, root_path: Path) -> bool:
         if self._is_valid_help_root(root_path):
             return True
         messagebox.showerror(
             "Ошибка",
-            "В выбранной папке нет shcntx_ru, shlang_ru или shquery_ru.\n"
-            "Выберите корневую папку, где лежат эти каталоги.",
+            "В выбранной папке нет ни архивов (shcntx_ru.hbk, shlang_ru.hbk,\n"
+            "shquery_ru.hbk), ни распакованных каталогов с этими именами.\n"
+            "Выберите папку со справкой 1С.",
         )
         return False
 
@@ -137,7 +137,7 @@ class AdminApp:
             if use_saved:
                 return Path(saved)
         return self._pick_help_root(
-            "Выберите папку с распакованной справкой (shcntx_ru, shlang_ru, shquery_ru)",
+            "Выберите папку со справкой 1С (архивы *.hbk или распакованные каталоги)",
             saved if saved and Path(saved).is_dir() else None,
         )
 
@@ -159,7 +159,7 @@ class AdminApp:
 
     def _add_help(self):
         root_path = self._pick_help_root(
-            "Выберите папку с распакованной справкой (shcntx_ru, shlang_ru, shquery_ru)"
+            "Выберите папку со справкой 1С (архивы *.hbk или распакованные каталоги)"
         )
         if not root_path:
             return

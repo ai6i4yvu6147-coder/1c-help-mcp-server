@@ -19,13 +19,14 @@
 | `search_query` | Полнотекстовый поиск только по языку запросов |
 | `list_query_topics` | Список тем запросов: `keyword`, `function`, `statement`, `operator`, `literal`, `article` |
 | `validate_code` | Эвристика: вызовы `.Метод()`, которых нет в API объекта |
-| `describe` | Reflection-справка конструктора: `unit` (`dcs`) + `name` (14 разделов: `dataset`/`dataset_link`/`field`/`role`/`calculated_field`/`total_field`/`parameter`/`output_parameter`/`filter`/`filter_group`/`selection`/`order`/`layout`/`conditional_appearance`); без `name` — обзор. Поля/enum/пример для сборки payload. Не путать со справкой BSL |
+| `describe` | Reflection-справка конструктора: `unit` + `name`, без `name` — обзор. `dcs` (СКД отчёта, 14 разделов: `dataset`/`dataset_link`/`field`/`role`/`calculated_field`/`total_field`/`parameter`/`output_parameter`/`filter`/`filter_group`/`selection`/`order`/`layout`/`conditional_appearance`); `form` (форма обработки/отчёта: `field`/`group`/`command`/`event`/`spreadsheet_field`; `field.kind='attribute'` — безголовый реквизит); `object` (`attribute`/`tabular_section`). Поля/enum/пример для сборки payload. Не путать со справкой BSL |
 | `create` | Конструктор: создать проект. `kind`: `processor`/`report`; `archetype` (report): `skd`/`macet` |
 | `set_object` | Конструктор: объектная оболочка — реквизиты `[{name, type_raw, qualifiers?}]` и (отчёт) табличные части |
 | `set_form` | Конструктор: форма (fields, groups, commands, events: [{event, handler}]; отчёт: form_name/spreadsheet_fields) |
 | `set_dcs` | Конструктор: схема СКД — запрос, поля, параметры, итоги, `layout` (архетип по `layout.mode`) |
 | `set_template` | Конструктор: табличный макет (MXL) — именованные области строк |
-| `set_module` | Конструктор: текст модуля (`ObjectModule` или `FormModule`) |
+| `set_module` | Конструктор: текст модуля (`ObjectModule` или `FormModule`) — **полная замена** |
+| `patch_module` | Конструктор: точечная правка модуля (str_replace: `old`→`new`, `old` ровно 1 раз или `replace_all`) — без пересылки всего модуля |
 | `validate` | Конструктор: XML + BSL + обработчики команд/событий |
 | `export` | Конструктор: экспорт; `path` = родительский каталог, проект → `path/<Name>/` |
 
@@ -50,7 +51,8 @@
 Группировка по «единице редактирования» (дизайн — [`write-tools-taxonomy.md`](write-tools-taxonomy.md)).
 `project` — единый хэндл (имя ищется в обеих таблицах `processor`/`report`, `kind`
 определяется автоматически). Один вызов `set_*` = **полная замена** этой единицы (билдер
-stateless). Payload полей СКД (отбор/выборка/порядок) — через `describe(unit='dcs')`.
+stateless) — для точечной правки BSL-модуля без пересылки целиком есть `patch_module`
+(str_replace). Payload полей СКД (отбор/выборка/порядок) — через `describe(unit='dcs')`.
 
 | Tool | Единица | Сигнатура |
 |---|---|---|
@@ -59,7 +61,8 @@ stateless). Payload полей СКД (отбор/выборка/порядок)
 | `set_form` | форма | `set_form(project, fields?, groups?, commands?, events?, form_name?, form_synonym?, spreadsheet_fields?)` |
 | `set_dcs` | схема СКД | `set_dcs(project, query?, fields?, parameters?, calculated_fields?, totals?, layout?)` — крепится и к Catalog/Document (Stage G) |
 | `set_template` | макет MXL | `set_template(project, areas, template_name?)` |
-| `set_module` | код | `set_module(project, module, code)` |
+| `set_module` | код (полная замена) | `set_module(project, module, code)` |
+| `patch_module` | код (точечно) | `patch_module(project, module, old, new, replace_all?)` — str_replace для BSL-модуля |
 | `validate` | lifecycle | `validate(project, version?)` |
 | `export` | lifecycle | `export(project, path)` |
 
