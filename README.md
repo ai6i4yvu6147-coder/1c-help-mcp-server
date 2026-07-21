@@ -31,3 +31,7 @@ The path to extracted folders is set in Admin on import — not stored in the re
 ## Portability
 
 The portable build can be moved. After moving, update the exe path in the MCP client config.
+
+## Tests
+
+`pip install -r requirements-dev.txt` then `pytest` (was previously missing from the dev venv; unlike `1c-config-mcp`/`1c-data-mcp`, run tests manually — no CI workflow here).
